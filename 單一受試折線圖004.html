@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>ABAB 研究圖表產生器 (寬螢幕學術加強版)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <style>
+        body { font-family: "Microsoft JhengHei", "Segoe UI", sans-serif; background-color: #f1f5f9; padding: 40px; margin: 0; color: #1e293b; }
+        .container { max-width: 1400px; margin: auto; background: white; padding: 35px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
+        h2 { text-align: center; color: #0f172a; margin-bottom: 30px; font-weight: 800; letter-spacing: -0.025em; }
+        
+        .setting-section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .section-title { font-size: 0.9em; font-weight: 700; color: #334155; margin-top: 0; margin-bottom: 15px; border-left: 5px solid #3b82f6; padding-left: 10px; text-transform: uppercase; }
+        
+        .grid-layout { display: flex; flex-wrap: wrap; gap: 20px; }
+        .grid-item { flex: 1; min-width: 220px; }
+        
+        label { display: block; font-size: 0.85em; color: #64748b; margin-bottom: 6px; font-weight: 600; }
+        input, textarea, select { width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; box-sizing: border-box; background-color: white; transition: border-color 0.2s; }
+        input:focus, textarea:focus, select:focus { border-color: #3b82f6; outline: none; }
+        
+        /* 動態數據列樣式 */
+        .data-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .data-row input[type="text"] { flex: 1; }
+        .data-row select.stage-color-input { width: 180px; height: 40px; } 
+        .data-row select.stage-shape-input { width: 110px; height: 40px; }
+        .btn-row-del { background-color: #ef4444; color: white; border: none; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-row-del:hover { background-color: #dc2626; }
+        .btn-row-add { background-color: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; margin-top: 5px; }
+        .btn-row-add:hover { background-color: #475569; }
+
+        /* 圖層開關樣式 */
+        .display-controls { display: flex; flex-wrap: wrap; gap: 24px; padding: 5px 5px 15px 5px; border-bottom: 1px dashed #e2e8f0; margin-bottom: 15px; }
+        .control-checkbox { display: flex; align-items: center; gap: 8px; font-size: 0.95em; font-weight: 600; color: #334155; cursor: pointer; }
+        .control-checkbox input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+
+        .btn-group { display: flex; gap: 12px; margin-top: 15px; }
+        button.main-btn { flex: 1; padding: 14px; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: 700; transition: all 0.2s; }
+        .btn-update { background-color: #2563eb; }
+        .btn-update:hover { background-color: #1d4ed8; transform: translateY(-1px); }
+        .btn-download { background-color: #059669; }
+        .btn-download:hover { background-color: #047857; transform: translateY(-1px); }
+        
+        /* 垂直 Y 軸標題容器 */
+        .chart-wrapper { display: flex; align-items: center; margin-top: 30px; gap: 10px; background: white; border: 1px solid #f1f5f9; border-radius: 12px; padding: 15px; }
+        
+        .custom-y-title {
+            writing-mode: vertical-lr;
+            text-orientation: mixed;
+            text-align: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: #64748b;
+            letter-spacing: 2px;
+            padding-left: 5px;
+        }
+        .chart-box { flex: 1; height: 600px; position: relative; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>單一受試研究數據 analysis 儀 (寬螢幕學術版)</h2>
+    
+    <div class="input-area">
+        <div class="setting-section">
+            <div class="section-title">軸線名稱自定義</div>
+            <div class="grid-layout">
+                <div class="grid-item">
+                    <label for="xAxisTitle">橫軸名稱 (X軸)</label>
+                    <input type="text" id="xAxisTitle" value="觀察天數">
+                </div>
+                <div class="grid-item">
+                    <label for="yAxisTitle">縱軸名稱 (Y軸)</label>
+                    <input type="text" id="yAxisTitle" value="行為發生百分比 (%)">
+                </div>
+            </div>
+        </div>
+
+        <div class="setting-section">
+            <div class="section-title">座標軸數據範圍</div>
+            <div class="grid-layout">
+                <div class="grid-item">
+                    <label for="xMinVal">天數起點</label>
+                    <input type="number" id="xMinVal" value="1">
+                </div>
+                <div class="grid-item">
+                    <label for="yMinVal">Y軸最小值</label>
+                    <input type="number" id="yMinVal" value="0">
+                </div>
+                <div class="grid-item">
+                    <label for="yMaxVal">Y軸最大值</label>
+                    <input type="number" id="yMaxVal" value="100">
+                </div>
+                <div class="grid-item">
+                    <label for="yStepVal">刻度間隔</label>
+                    <input type="number" id="yStepVal" value="10">
+                </div>
+            </div>
+        </div>
+
+        <div class="setting-section">
+            <div class="section-title">各階段數據與外觀設定</div>
+            <p style="font-size: 0.8em; color: #94a3b8; margin: 0 0 12px 0;">格式：階段名稱, 數據1, 數據2... 您可以自訂外觀，並透過下方開關控制輔助圖層與數字標籤。</p>
+            
+            <div id="dynamicRowsContainer">
+            </div>
+            <button type="button" class="btn-row-add" onclick="addDataRow('', '', '')">+ 新增數據階段</button>
+        </div>
+
+        <div class="display-controls">
+            <label class="control-checkbox">
+                <input type="checkbox" id="showTrendCheck" checked> 顯示趨勢線 (虛線)
+            </label>
+            <label class="control-checkbox">
+                <input type="checkbox" id="showMeanCheck" checked> 顯示平均線 (水平細實線)
+            </label>
+            <label class="control-checkbox">
+                <input type="checkbox" id="showMeanTextCheck" checked> 顯示各階段平均數數值 (M = xx)
+            </label>
+            <label class="control-checkbox">
+                <input type="checkbox" id="showValueCheck" checked> 顯示數據點數字
+            </label>
+        </div>
+
+        <div class="btn-group">
+            <button class="main-btn btn-update" onclick="drawChart()">更新圖表</button>
+            <button class="main-btn btn-download" onclick="downloadChart()">匯出圖片 (.png)</button>
+        </div>
+    </div>
+    
+    <div class="chart-wrapper">
+        <div id="verticalYTitle" class="custom-y-title">行為發生百分比 (%)</div>
+        <div class="chart-box">
+            <canvas id="myChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+if (window.ChartAnnotation) {
+    Chart.register(window.ChartAnnotation);
+}
+
+let chartInstance = null;
+
+const academic20Colors = [
+    { name: "曜石黑 (Charcoal)", hex: "#0f172a" },
+    { name: "古典藍 (Classic Blue)", hex: "#1e3a8a" },
+    { name: "天青藍 (Sky Blue)", hex: "#0284c7" },
+    { name: "湖水綠 (Teal)", hex: "#0d9488" },
+    { name: "森林綠 (Forest Green)", hex: "#16a34a" },
+    { name: "鮮橘紅 (Burnt Orange)", hex: "#ea580c" },
+    { name: "酒紅 (Crimson)", hex: "#991b1b" },
+    { name: "皇家紫 (Purple)", hex: "#7c3aed" },
+    { name: "玫瑰粉 (Rose)", hex: "#e11d48" },
+    { name: "胭脂紅 (Ruby)", hex: "#dc2626" },
+    { name: "石板灰 (Slate)", hex: "#475569" },
+    { name: "莫蘭迪藍 (Denim)", hex: "#4682b4" },
+    { name: "橄欖綠 (Olive)", hex: "#556b2f" },
+    { name: "芥末黃 (Mustard)", hex: "#d97706" },
+    { name: "巧克力棕 (Brown)", hex: "#78350f" },
+    { name: "絳紫 (Plum)", hex: "#581c87" },
+    { name: "珊瑚紅 (Coral)", hex: "#f43f5e" },
+    { name: "薄荷綠 (Mint)", hex: "#10b981" },
+    { name: "深海藍 (Navy)", hex: "#172554" },
+    { name: "豆沙紅 (Mauve)", hex: "#b45309" }
+];
+
+const defaultShapes = ['circle', 'rect', 'triangle', 'rectRot', 'cross'];
+
+const initialData = [
+    { text: "基線 A1, 100, 95, 95, 100, 100", color: academic20Colors[0].hex, shape: defaultShapes[0] },
+    { text: "介入 B1, 100, 80, 80, 60, 60", color: academic20Colors[5].hex, shape: defaultShapes[1] },
+    { text: "基線 A2, 70, 70, 80, 90, 80", color: academic20Colors[4].hex, shape: defaultShapes[2] },
+    { text: "介入 B2, 60, 60, 50, 20, 20", color: academic20Colors[2].hex, shape: defaultShapes[3] }
+];
+
+function addDataRow(textValue = '', colorValue = '', shapeValue = '') {
+    const container = document.getElementById('dynamicRowsContainer');
+    const rowCount = container.children.length;
+    
+    const finalColor = colorValue || academic20Colors[rowCount % academic20Colors.length].hex;
+    const finalShape = shapeValue || defaultShapes[rowCount % defaultShapes.length];
+    
+    let colorOptionsHtml = "";
+    academic20Colors.forEach(c => {
+        const isSelected = c.hex.toLowerCase() === finalColor.toLowerCase() ? 'selected' : '';
+        colorOptionsHtml += `<option value="${c.hex}" ${isSelected}>■ ${c.name}</option>`;
+    });
+
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'data-row';
+    rowDiv.innerHTML = `
+        <input type="text" class="stage-data-input" value="${textValue}" placeholder="例如：階段名稱, 50, 60, 70">
+        <select class="stage-color-input" title="選擇線條顏色">
+            ${colorOptionsHtml}
+        </select>
+        <select class="stage-shape-input" title="選擇資料點形狀">
+            <option value="circle" ${finalShape === 'circle' ? 'selected' : ''}>● 圓形</option>
+            <option value="rect" ${finalShape === 'rect' ? 'selected' : ''}>■ 正方形</option>
+            <option value="triangle" ${finalShape === 'triangle' ? 'selected' : ''}>▲ 三角形</option>
+            <option value="rectRot" ${finalShape === 'rectRot' ? 'selected' : ''}>◆ 菱形</option>
+            <option value="cross" ${finalShape === 'cross' ? 'selected' : ''}>✖ 叉叉</option>
+        </select>
+        <button type="button" class="btn-row-del" onclick="this.parentElement.remove()">刪除</button>
+    `;
+    container.appendChild(rowDiv);
+}
+
+function initRows() {
+    initialData.forEach(item => {
+        addDataRow(item.text, item.color, item.shape);
+    });
+}
+
+function getTrendPoints(localPoints) {
+    const n = localPoints.length;
+    if (n < 2) return [];
+    let sX = 0, sY = 0, sXY = 0, sXX = 0;
+    localPoints.forEach(p => {
+        sX += p.x; sY += p.y; sXY += p.x * p.y; sXX += p.x * p.x;
+    });
+    const slope = (n * sXY - sX * sY) / (n * sXX - sX * sX);
+    const intercept = (sY - slope * sX) / n;
+    return localPoints.map(p => ({ x: p.x, y: slope * p.x + intercept }));
+}
+
+function drawChart() {
+    try {
+        const xTitle = document.getElementById('xAxisTitle').value.trim() || '天數';
+        const yTitle = document.getElementById('yAxisTitle').value.trim() || '數值';
+
+        document.getElementById('verticalYTitle').innerText = yTitle;
+
+        const xStart = Number(document.getElementById('xMinVal').value) || 1;
+        const yMin = Number(document.getElementById('yMinVal').value);
+        const yMax = Number(document.getElementById('yMaxVal').value);
+        const yStep = Number(document.getElementById('yStepVal').value) || 10;
+
+        const showTrend = document.getElementById('showTrendCheck').checked;
+        const showMean = document.getElementById('showMeanCheck').checked;
+        const showMeanText = document.getElementById('showMeanTextCheck').checked;
+        const showValue = document.getElementById('showValueCheck').checked;
+
+        const rowInputs = document.querySelectorAll('.stage-data-input');
+        const colorInputs = document.querySelectorAll('.stage-color-input');
+        const shapeInputs = document.querySelectorAll('.stage-shape-input');
+        
+        const datasets = [];
+        const stageLabels = {};
+        let dayTracker = xStart;
+        
+        let validLineCount = 0;
+        rowInputs.forEach((input) => {
+            if(!input.value.trim()) return;
+            const parts = input.value.split(',');
+            const vals = parts.slice(1).map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+            if(vals.length > 0) validLineCount++;
+        });
+
+        let currentValidIndex = 0;
+
+        rowInputs.forEach((input, i) => {
+            const lineText = input.value.trim();
+            if (!lineText) return;
+            
+            const parts = lineText.split(',');
+            const stageName = parts[0].trim();
+            const vals = parts.slice(1).map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+            if (vals.length === 0) return;
+
+            const stX = dayTracker;
+            const edX = dayTracker + vals.length - 1;
+            
+            const color = colorInputs[i].value;
+            const shape = shapeInputs[i].value;
+
+            let pts = vals.map((v, idx) => ({ x: dayTracker + idx, y: v }));
+
+            // 1. 原始數據折線
+            datasets.push({
+                label: stageName,
+                data: pts,
+                borderColor: color,
+                backgroundColor: color,
+                borderWidth: 3.5,
+                pointStyle: shape,
+                pointRadius: shape === 'cross' ? 8 : 6,
+                pointHoverRadius: 9,
+                fill: false,
+                showLine: true,
+                tension: 0
+            });
+
+            // 數據點數字呈現
+            if (showValue) {
+                pts.forEach((pt, ptIdx) => {
+                    stageLabels[`valLabel_${i}_${ptIdx}`] = {
+                        type: 'label',
+                        xValue: pt.x,
+                        yValue: pt.y,
+                        yAdjust: -14, 
+                        content: String(pt.y),
+                        color: color, 
+                        font: {
+                            size: 12,
+                            weight: 'bold',
+                            family: 'Microsoft JhengHei'
+                        }
+                    };
+                });
+            }
+
+            // 2. 趨勢虛線
+            if (showTrend && vals.length > 1) {
+                datasets.push({
+                    label: stageName + ' 趨勢',
+                    data: getTrendPoints(pts),
+                    borderColor: color,
+                    borderDash: [6, 4],
+                    borderWidth: 1.8,
+                    pointRadius: 0,
+                    showLine: true
+                });
+            }
+
+            // 3. 平均線與平均數文字單獨處理
+            if (vals.length > 0) {
+                const sum = vals.reduce((a, b) => a + b, 0);
+                const avg = Math.round((sum / vals.length) * 10) / 10; 
+                
+                // 獨立控制：畫平均線
+                if (showMean) {
+                    const meanPoints = [{ x: stX, y: avg }, { x: edX, y: avg }];
+                    datasets.push({
+                        label: stageName + ' 平均值',
+                        data: meanPoints,
+                        borderColor: color,
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        showLine: true,
+                        fill: false
+                    });
+                }
+
+                // ⭐ 獨立控制：顯示平均數文字，並精準定位在平均線的最前端 (stX)
+                if (showMeanText) {
+                    stageLabels[`meanText_${i}`] = {
+                        type: 'label',
+                        xValue: stX,
+                        yValue: avg,
+                        yAdjust: -12, // 微微向上浮動，完美貼合在平均線的正上方前端
+                        xAdjust: 18,  // 稍微往右移一點，避免貼死在最左邊的分隔垂直線上
+                        content: `M = ${avg}`,
+                        color: color,
+                        backgroundColor: 'rgba(255, 255, 255, 0.85)', // 精緻的透白遮罩底色
+                        padding: { top: 2, bottom: 2, left: 5, right: 5 },
+                        borderRadius: 4,
+                        font: {
+                            size: 13,
+                            weight: 'bold',
+                            family: 'Microsoft JhengHei'
+                        }
+                    };
+                }
+            }
+
+            // 4. 頂部階段名稱文字
+            stageLabels[`text${i}`] = {
+                type: 'label',
+                xValue: (stX + edX) / 2,
+                yValue: yMax,
+                yAdjust: -20,
+                content: stageName,
+                color: color,
+                font: { size: 16, weight: '800', family: 'Microsoft JhengHei' }
+            };
+
+            // 5. 階段分隔垂直線
+            if (currentValidIndex < validLineCount - 1) {
+                stageLabels[`line${i}`] = {
+                    type: 'line',
+                    xMin: edX + 0.5,
+                    xMax: edX + 0.5,
+                    borderColor: '#cbd5e1',
+                    borderWidth: 2,
+                    borderDash: [8, 8]
+                };
+            }
+            dayTracker += vals.length;
+            currentValidIndex++;
+        });
+
+        const xEnd = dayTracker - 1; 
+
+        // 強行固定最左與最右端 X 軸數字
+        stageLabels[`forced_xStart_label`] = {
+            type: 'label',
+            xValue: xStart,
+            yValue: yMin,
+            yAdjust: 18, 
+            content: String(xStart),
+            color: '#64748b',
+            font: { size: 12, weight: 'bold', family: 'Microsoft JhengHei' }
+        };
+
+        stageLabels[`forced_xEnd_label`] = {
+            type: 'label',
+            xValue: xEnd,
+            yValue: yMin,
+            yAdjust: 18, 
+            content: String(xEnd),
+            color: '#64748b',
+            font: { size: 12, weight: 'bold', family: 'Microsoft JhengHei' }
+        };
+
+        const ctx = document.getElementById('myChart').getContext('2d');
+        if (chartInstance) chartInstance.destroy();
+
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: { datasets: datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                clip: false,
+                layout: { padding: { top: 45, right: 30, bottom: 20, left: 10 } }, 
+                scales: {
+                    x: {
+                        type: 'linear',
+                        title: { display: true, text: xTitle, font: { size: 14, weight: 'bold' } },
+                        min: xStart - 0.5,
+                        max: xEnd + 0.5,
+                        ticks: { 
+                            stepSize: 1, 
+                            precision: 0,
+                            callback: function(value) {
+                                if (value === xStart || value === xEnd) {
+                                    return ''; 
+                                }
+                                if (Math.floor(value) === value) {
+                                    const totalDays = xEnd - xStart;
+                                    if (totalDays > 25) {
+                                        return (value % 5 === 0) ? value : '';
+                                    }
+                                    return value;
+                                }
+                                return '';
+                            }
+                        },
+                        grid: { display: false }
+                    },
+                    y: {
+                        type: 'linear',
+                        title: { display: false }, 
+                        min: yMin,
+                        max: yMax,
+                        ticks: { stepSize: yStep },
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    annotation: { annotations: stageLabels }
+                }
+            }
+        });
+    } catch (err) {
+        console.error(err);
+        alert("圖表渲染失敗，請確認數據輸入格式。");
+    }
+}
+
+function downloadChart() {
+    if (!chartInstance) return;
+    const link = document.createElement('a');
+    link.download = 'ABAB_Advanced_Report.png';
+    link.href = chartInstance.toBase64Image();
+    link.click();
+}
+
+window.onload = () => {
+    initRows();
+    setTimeout(drawChart, 200);
+};
+</script>
+
+</body>
+</html>
