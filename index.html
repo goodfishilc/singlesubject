@@ -248,6 +248,16 @@
             margin-bottom: 8px;
         }
         
+        .repo-info {
+            text-align: center;
+            padding: 10px;
+            background: #e7f3ff;
+            color: #0066cc;
+            border-radius: 6px;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }
+        
         @media (max-width: 600px) {
             .container {
                 padding: 20px;
@@ -287,11 +297,15 @@
         <h1>📚 Single Subject</h1>
         <p class="subtitle">資源中心 - 快速存取所有網頁</p>
         
+        <div class="repo-info">
+            📂 自動從 GitHub 倉庫讀取所有 HTML 檔案
+        </div>
+        
         <div class="status-message" id="statusMessage"></div>
         
         <div class="button-group">
             <button class="btn-refresh" onclick="refreshLinks()">
-                🔄 更新連結
+                🔄 重新載入檔案
             </button>
             <button class="btn-add" onclick="toggleAddForm()">
                 ➕ 新增連結
@@ -299,7 +313,7 @@
         </div>
         
         <div class="add-link-form" id="addForm" style="display: none;">
-            <h3 style="margin-bottom: 10px;">新增新連結</h3>
+            <h3 style="margin-bottom: 10px;">新增自訂連結</h3>
             <div class="form-group">
                 <input type="text" id="newLinkTitle" placeholder="連結標題">
             </div>
@@ -316,7 +330,7 @@
         <div class="links-section">
             <h2>📎 資源連結</h2>
             <ul class="link-list" id="linksList">
-                <li class="empty-state">正在載入連結...</li>
+                <li class="empty-state">正在載入檔案...</li>
             </ul>
         </div>
     </div>
@@ -325,22 +339,7 @@
         // 本地存儲 key
         const STORAGE_KEY = 'singlesubject_links';
         const GITHUB_PAGES_BASE = 'https://goodfishilc.github.io/singlesubject/';
-        
-        // 初始連結數據 - 使用 GitHub Pages 格式的完整 URL
-        const defaultLinks = [
-            {
-                id: 1,
-                title: '便利商店',
-                url: 'https://goodfishilc.github.io/singlesubject/convenience_store.html',
-                category: '應用程序'
-            },
-            {
-                id: 2,
-                title: '單一受試折線圖',
-                url: 'https://goodfishilc.github.io/singlesubject/%E5%96%AE%E4%B8%80%E5%8F%97%E8%A9%A6%E6%8A%98%E7%B7%9A%E5%9C%96004.html',
-                category: '數據視覺化'
-            }
-        ];
+        const GITHUB_API_BASE = 'https://api.github.com/repos/goodfishilc/singlesubject/contents';
         
         // 初始化應用
         function initApp() {
@@ -352,19 +351,83 @@
         function loadLinks() {
             const stored = localStorage.getItem(STORAGE_KEY);
             if (!stored) {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultLinks));
+                // 初始化為空陣列，檔案會從 GitHub 自動獲取
+                localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
             }
         }
         
-        // 獲取所有連結
-        function getLinks() {
+        // 獲取所有連結（本地自訂 + GitHub 檔案）
+        async function getLinks() {
             const stored = localStorage.getItem(STORAGE_KEY);
-            return stored ? JSON.parse(stored) : defaultLinks;
+            const customLinks = stored ? JSON.parse(stored) : [];
+            
+            // 從 GitHub 獲取所有 HTML 檔案
+            const repoFiles = await fetchRepoFiles();
+            
+            // 合併自訂連結和倉庫檔案
+            const allLinks = [...repoFiles, ...customLinks];
+            
+            // 去重：避免重複的 URL
+            const uniqueLinks = [];
+            const urlSet = new Set();
+            
+            for (const link of allLinks) {
+                if (!urlSet.has(link.url)) {
+                    urlSet.add(link.url);
+                    uniqueLinks.push(link);
+                }
+            }
+            
+            return uniqueLinks;
         }
         
-        // 保存連結
+        // 從 GitHub API 獲取倉庫中的所有 HTML 檔案
+        async function fetchRepoFiles() {
+            try {
+                const response = await fetch(GITHUB_API_BASE);
+                if (!response.ok) throw new Error('無法獲取檔案列表');
+                
+                const files = await response.json();
+                const htmlFiles = [];
+                let id = 1;
+                
+                // 過濾 HTML 檔案（排除 index.html）
+                for (const file of files) {
+                    if (file.type === 'file' && file.name.endsWith('.html') && file.name !== 'index.html') {
+                        const encodedName = encodeURIComponent(file.name);
+                        htmlFiles.push({
+                            id: id++,
+                            title: formatFileName(file.name),
+                            url: GITHUB_PAGES_BASE + encodedName,
+                            category: '倉庫檔案',
+                            isRepoFile: true
+                        });
+                    }
+                }
+                
+                return htmlFiles;
+            } catch (error) {
+                console.error('獲取倉庫檔案失敗:', error);
+                showStatus('⚠️ 無法從 GitHub 獲取檔案列表', 'success', 3000);
+                return [];
+            }
+        }
+        
+        // 格式化檔案名（移除 .html 擴展名，解碼中文）
+        function formatFileName(filename) {
+            let name = filename.replace(/\.html$/i, '');
+            try {
+                name = decodeURIComponent(name);
+            } catch (e) {
+                // 如果解碼失敗，使用原始名稱
+            }
+            return name;
+        }
+        
+        // 保存自訂連結（不包括倉庫檔案）
         function saveLinks(links) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(links));
+            const customLinks = links.filter(link => !link.isRepoFile);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(customLinks));
         }
         
         // 驗證 URL 格式
@@ -373,14 +436,17 @@
         }
         
         // 渲染連結列表
-        function renderLinks() {
-            const links = getLinks();
+        async function renderLinks() {
+            const links = await getLinks();
             const linksList = document.getElementById('linksList');
             
             if (links.length === 0) {
                 linksList.innerHTML = '<li class="empty-state">暫無連結，點擊「新增連結」開始新增</li>';
                 return;
             }
+            
+            // 按分類排序
+            links.sort((a, b) => (a.category || '').localeCompare(b.category || '', 'zh'));
             
             linksList.innerHTML = links.map(link => {
                 const categoryHtml = link.category ? `<span class="category-badge">${link.category}</span><br>` : '';
@@ -397,7 +463,7 @@
                         <div class="link-actions">
                             <button class="btn-small btn-open" onclick="openLink('${link.url}')">打開</button>
                             <button class="btn-small btn-copy" onclick="copyLink('${link.url}')">複製</button>
-                            <button class="btn-small btn-delete" onclick="deleteLink(${link.id})">刪除</button>
+                            ${link.isRepoFile ? '' : `<button class="btn-small btn-delete" onclick="deleteLink(${link.id})">刪除</button>`}
                         </div>
                     </li>
                 `;
@@ -421,11 +487,12 @@
         // 刪除連結
         function deleteLink(id) {
             if (confirm('確定要刪除此連結嗎？')) {
-                let links = getLinks();
+                const stored = localStorage.getItem(STORAGE_KEY);
+                let links = stored ? JSON.parse(stored) : [];
                 links = links.filter(link => link.id !== id);
                 saveLinks(links);
                 renderLinks();
-                showStatus('✅ 連結已刪除', 'success', 2000);
+                showStatus('✅連結已刪除', 'success', 2000);
             }
         }
         
@@ -450,14 +517,16 @@
                 return;
             }
             
-            const links = getLinks();
+            const stored = localStorage.getItem(STORAGE_KEY);
+            const links = stored ? JSON.parse(stored) : [];
             const newId = Math.max(...links.map(l => l.id), 0) + 1;
             
             links.push({
                 id: newId,
                 title: title,
                 url: url,
-                category: category || '其他'
+                category: category || '自訂',
+                isRepoFile: false
             });
             
             saveLinks(links);
@@ -475,14 +544,13 @@
             form.style.display = form.style.display === 'none' ? 'block' : 'none';
         }
         
-        // 更新連結
+        // 重新載入連結
         function refreshLinks() {
-            showStatus('🔄 更新中...', 'loading');
+            showStatus('🔄 重新載入中...', 'loading');
             
-            // 模擬網路延遲
-            setTimeout(() => {
-                renderLinks();
-                showStatus('✅ 連結已更新!', 'success', 2000);
+            setTimeout(async () => {
+                await renderLinks();
+                showStatus('✅ 已重新載入!', 'success', 2000);
             }, 800);
         }
         
