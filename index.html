@@ -1,2 +1,454 @@
-https://drive.google.com/file/d/12I-ms6lfzw7lRhd3MuUpQA_UdfC5ttC1/view?usp=drive_link
-https://drive.google.com/file/d/1e_wk40JORh4s2YBc-NObIt_etsFJeAdc/view?usp=drive_link
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Single Subject - 資源中心</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-refresh {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-refresh:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-refresh:active {
+            transform: translateY(0);
+        }
+        
+        .btn-add {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-add:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(76, 175, 80, 0.4);
+        }
+        
+        .status-message {
+            text-align: center;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            display: none;
+        }
+        
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        
+        .status-message.loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            display: block;
+        }
+        
+        .links-section {
+            margin-bottom: 30px;
+        }
+        
+        .links-section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .link-list {
+            list-style: none;
+        }
+        
+        .link-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+        
+        .link-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+        
+        .link-item a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            word-break: break-all;
+            flex: 1;
+        }
+        
+        .link-item a:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+        
+        .link-actions {
+            display: flex;
+            gap: 8px;
+            margin-left: 15px;
+        }
+        
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.9em;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-copy {
+            background: #e7f3ff;
+            color: #0066cc;
+        }
+        
+        .btn-copy:hover {
+            background: #b3d9ff;
+        }
+        
+        .btn-delete {
+            background: #ffe7e7;
+            color: #cc0000;
+        }
+        
+        .btn-delete:hover {
+            background: #ffb3b3;
+        }
+        
+        .add-link-form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
+        }
+        
+        .empty-state {
+            text-align: center;
+            color: #999;
+            padding: 30px;
+            font-style: italic;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+            
+            .link-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .link-actions {
+                width: 100%;
+                margin-left: 0;
+                margin-top: 10px;
+            }
+            
+            .form-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 Single Subject</h1>
+        <p class="subtitle">資源中心 - 快速存取所有連結</p>
+        
+        <div class="status-message" id="statusMessage"></div>
+        
+        <div class="button-group">
+            <button class="btn-refresh" onclick="refreshLinks()">
+                🔄 更新連結
+            </button>
+            <button class="btn-add" onclick="toggleAddForm()">
+                ➕ 新增連結
+            </button>
+        </div>
+        
+        <div class="add-link-form" id="addForm" style="display: none;">
+            <h3 style="margin-bottom: 10px;">新增新連結</h3>
+            <div class="form-group">
+                <input type="text" id="newLinkTitle" placeholder="連結標題 (選填)">
+            </div>
+            <div class="form-group">
+                <input type="text" id="newLinkUrl" placeholder="輸入完整 URL">
+                <button class="btn-refresh" onclick="addNewLink()" style="flex: 0 0 auto;">新增</button>
+                <button style="background: #999; color: white; flex: 0 0 auto;" onclick="toggleAddForm()">取消</button>
+            </div>
+        </div>
+        
+        <div class="links-section">
+            <h2>📎 資源連結</h2>
+            <ul class="link-list" id="linksList">
+                <li class="empty-state">正在載入連結...</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // 本地存儲 key
+        const STORAGE_KEY = 'singlesubject_links';
+        
+        // 初始連結數據
+        const defaultLinks = [
+            {
+                id: 1,
+                title: 'Google Drive 資料 1',
+                url: 'https://drive.google.com/file/d/12I-ms6lfzw7lRhd3MuUpQA_UdfC5ttC1/view?usp=drive_link'
+            },
+            {
+                id: 2,
+                title: 'Google Drive 資料 2',
+                url: 'https://drive.google.com/file/d/1e_wk40JORh4s2YBc-NObIt_etsFJeAdc/view?usp=drive_link'
+            }
+        ];
+        
+        // 初始化應用
+        function initApp() {
+            loadLinks();
+            renderLinks();
+        }
+        
+        // 從本地存儲加載連結
+        function loadLinks() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (!stored) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultLinks));
+            }
+        }
+        
+        // 獲取所有連結
+        function getLinks() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            return stored ? JSON.parse(stored) : defaultLinks;
+        }
+        
+        // 保存連結
+        function saveLinks(links) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(links));
+        }
+        
+        // 渲染連結列表
+        function renderLinks() {
+            const links = getLinks();
+            const linksList = document.getElementById('linksList');
+            
+            if (links.length === 0) {
+                linksList.innerHTML = '<li class="empty-state">暫無連結，點擊「新增連結」開始新增</li>';
+                return;
+            }
+            
+            linksList.innerHTML = links.map(link => `
+                <li class="link-item">
+                    <a href="${link.url}" target="_blank" rel="noopener noreferrer">
+                        ${link.title || '未命名連結'}<br>
+                        <small style="color: #999;">${truncateUrl(link.url)}</small>
+                    </a>
+                    <div class="link-actions">
+                        <button class="btn-small btn-copy" onclick="copyLink('${link.url}')">複製</button>
+                        <button class="btn-small btn-delete" onclick="deleteLink(${link.id})">刪除</button>
+                    </div>
+                </li>
+            `).join('');
+        }
+        
+        // 截斷 URL 顯示
+        function truncateUrl(url) {
+            return url.length > 50 ? url.substring(0, 50) + '...' : url;
+        }
+        
+        // 複製連結到剪貼板
+        function copyLink(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                showStatus('✅ 已複製到剪貼板!', 'success', 2000);
+            }).catch(() => {
+                alert('複製失敗，請手動複製');
+            });
+        }
+        
+        // 刪除連結
+        function deleteLink(id) {
+            if (confirm('確定要刪除此連結嗎？')) {
+                let links = getLinks();
+                links = links.filter(link => link.id !== id);
+                saveLinks(links);
+                renderLinks();
+                showStatus('✅ 連結已刪除', 'success', 2000);
+            }
+        }
+        
+        // 新增連結
+        function addNewLink() {
+            const title = document.getElementById('newLinkTitle').value.trim();
+            const url = document.getElementById('newLinkUrl').value.trim();
+            
+            if (!url) {
+                showStatus('❌ 請輸入連結 URL', 'success', 2000);
+                return;
+            }
+            
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                showStatus('❌ 請輸入有效的 URL (以 http:// 或 https:// 開頭)', 'success', 2000);
+                return;
+            }
+            
+            const links = getLinks();
+            const newId = Math.max(...links.map(l => l.id), 0) + 1;
+            
+            links.push({
+                id: newId,
+                title: title || '新增連結',
+                url: url
+            });
+            
+            saveLinks(links);
+            document.getElementById('newLinkTitle').value = '';
+            document.getElementById('newLinkUrl').value = '';
+            toggleAddForm();
+            renderLinks();
+            showStatus('✅ 連結新增成功!', 'success', 2000);
+        }
+        
+        // 切換新增表單
+        function toggleAddForm() {
+            const form = document.getElementById('addForm');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        // 更新連結
+        function refreshLinks() {
+            showStatus('🔄 更新中...', 'loading');
+            
+            // 模擬網路延遲
+            setTimeout(() => {
+                renderLinks();
+                showStatus('✅ 連結已更新!', 'success', 2000);
+            }, 800);
+        }
+        
+        // 顯示狀態訊息
+        function showStatus(message, type, duration = 3000) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status-message ${type}`;
+            
+            if (duration > 0) {
+                setTimeout(() => {
+                    statusEl.className = 'status-message';
+                }, duration);
+            }
+        }
+        
+        // 允許按 Enter 鍵提交新增連結表單
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('newLinkUrl').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') addNewLink();
+            });
+            
+            initApp();
+        });
+    </script>
+</body>
+</html>
