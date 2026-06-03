@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大圖示語音橫式滿版 - 漢堡店</title>
+    <style>
+        :root {
+            --primary-color: #ff9800;
+            --bg-color: #fcf8f2;
+            --card-bg: #ffffff;
+            --text-color: #4a4a4a;
+        }
+
+        /* 嚴格鎖定全螢幕，嚴禁產生任何方向捲軸 */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        /* 滿版主要容器 */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            gap: 6px;
+        }
+
+        /* 頂部整合列：標題與老師設定 */
+        .header-zone {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 38px;
+            flex-shrink: 0;
+            background: #fff;
+            padding: 0 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        h1 {
+            color: #e65100;
+            font-size: 1.2rem;
+            margin: 0;
+        }
+
+        .teacher-panel {
+            background-color: #e3f2fd;
+            border: 1px dashed #2196f3;
+            border-radius: 4px;
+            padding: 2px 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .teacher-panel label {
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #0d47a1;
+        }
+
+        .teacher-panel input {
+            font-size: 0.9rem;
+            width: 65px;
+            padding: 1px;
+            text-align: center;
+            border: 1px solid #2196f3;
+            border-radius: 3px;
+        }
+
+        /* 核心遊戲區域（橫向排列） */
+        .game-zone {
+            display: flex;
+            flex: 1;
+            gap: 10px;
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 左側操作控制台 (佔約 30% 寬) */
+        .left-panel {
+            flex: 30; 
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            height: 100%;
+        }
+
+        /* 收入看板 */
+        .status-board {
+            display: flex;
+            justify-content: space-around;
+            background: #fff;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            font-size: 1.1rem;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .score-text { color: #2e7d32; }
+        .target-text { color: #e65100; }
+
+        /* 客人點餐區 */
+        .order-card {
+            background: #fff3e0;
+            border: 2px solid #ffb74d;
+            border-radius: 10px;
+            padding: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            flex-shrink: 0;
+        }
+
+        .order-title {
+            font-size: 1rem;
+            color: #e65100;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+
+        .order-items {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            min-height: 80px;
+        }
+
+        /* 工作餐盤區 */
+        .tray-area {
+            background: #cfd8dc;
+            border: 3px solid #78909c;
+            border-radius: 10px;
+            padding: 8px;
+            flex: 1; 
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .tray-title {
+            font-size: 1rem;
+            color: #37474f;
+            margin-bottom: 6px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .tray-contents {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            align-items: center;
+            background: rgba(255,255,255,0.4);
+            border-radius: 6px;
+            padding: 6px;
+            flex: 1;
+            overflow: hidden; 
+        }
+
+        /* 按鈕區 */
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 6px;
+            flex-shrink: 0;
+        }
+
+        .btn {
+            font-size: 1.1rem;
+            padding: 6px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.1);
+        }
+        .btn-clear { background-color: #e0e0e0; color: #333; }
+        .btn-submit { background-color: #4caf50; color: white; font-size: 1.2rem; }
+
+        /* 右側菜單大圖區 (佔比至 70% 寬) */
+        .right-panel {
+            flex: 70;
+            display: flex;
+            flex-direction: column; 
+            gap: 8px;
+            height: 100%;
+            background: white;
+            padding: 8px;
+            border-radius: 10px;
+            box-sizing: border-box;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+
+        /* 四列垂直菜單類別 */
+        .menu-category {
+            display: flex;
+            flex-direction: column;
+            background: #fafafa;
+            border-radius: 6px;
+            padding: 6px;
+            border: 1px solid #eaeaea;
+            flex: 1; 
+            overflow: hidden;
+        }
+
+        .category-title {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 4px;
+            padding-left: 5px;
+            border-left: 4px solid var(--primary-color);
+            flex-shrink: 0;
+        }
+        
+        .price-badge {
+            font-size: 0.9rem;
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 1px 6px;
+            border-radius: 4px;
+            margin-left: 6px;
+        }
+
+        /* 按鈕配置陣列 */
+        .grid-buttons {
+            display: flex;
+            flex-wrap: nowrap; 
+            gap: 8px;
+            justify-content: flex-start; 
+            align-items: center;
+            flex: 1;
+            overflow: hidden; 
+        }
+
+        /* 圖形卡片按鈕 */
+        .item-btn-card {
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            background: none;
+            transition: transform 0.1s;
+            flex-shrink: 0; 
+        }
+        .item-btn-card:active { transform: scale(0.9); }
+
+        /* 大圖形標籤核心樣式 (140x140 放大一倍) */
+        .food-token {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 140px; 
+            height: 140px; 
+            border-radius: 15px; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border: 4px solid #fff;
+            position: relative;
+            box-sizing: border-box;
+            animation: popIn 0.2s ease;
+        }
+
+        .token-icon {
+            font-size: 4rem; 
+            line-height: 1;
+        }
+
+        .token-label {
+            font-size: 1rem; 
+            font-weight: bold;
+            color: #333;
+            margin-top: 4px;
+            background: rgba(255,255,255,0.7);
+            padding: 1px 6px;
+            border-radius: 8px;
+            white-space: nowrap;
+        }
+
+        /* 左側中圖形配置 */
+        .order-items .food-token, .tray-contents .food-token {
+            width: 76px; 
+            height: 76px;
+            border-radius: 8px;
+            border-width: 2px;
+        }
+        .order-items .token-icon, .tray-contents .token-icon {
+            font-size: 2.2rem;
+        }
+        .order-items .token-label, .tray-contents .token-label {
+            font-size: 0.75rem;
+            margin-top: 1px;
+        }
+
+        /* 開始遊戲遮罩畫面 */
+        .start-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(252, 248, 242, 0.98);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 12px;
+            z-index: 95;
+        }
+
+        .welcome-title {
+            font-size: 2rem;
+            color: #e65100;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .btn-start {
+            font-size: 1.8rem;
+            padding: 12px 40px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 6px 12px rgba(76,175,80,0.4);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* 破關彈出視窗 */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 18px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            max-width: 350px;
+            width: 80%;
+        }
+
+        .modal-content h2 { color: #4caf50; font-size: 2rem; margin-bottom: 12px; }
+        .modal-content button { font-size: 1.2rem; padding: 8px 20px; background: #2196f3; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <div class="header-zone">
+            <h1>🗣️ 小幫手大圖形配對漢堡店 (雙重語音版) 🗣️</h1>
+            <div class="teacher-panel">
+                <label for="targetIncomeInput">👩‍🏫 老師設定：目標收入 (元)</label>
+                <input type="number" id="targetIncomeInput" value="500" min="50" step="50">
+            </div>
+        </div>
+
+        <div class="game-zone">
+            
+            <div class="start-overlay" id="startOverlay">
+                <div class="welcome-title">👨‍🍳 聽聲音、看圖形！開張做生意囉！</div>
+                <button class="btn-start" onclick="startGame()">▶ 開始營業</button>
+            </div>
+
+            <div class="left-panel">
+                <div class="status-board">
+                    <span class="score-text">目前收入：💲 <span id="currentIncome">0</span> 元</span>
+                    <span class="target-text">目標收入：🎯 <span id="targetIncomeLabel">500</span> 元</span>
+                </div>
+
+                <div class="order-card">
+                    <div class="order-title">🔔 客人想要：</div>
+                    <div class="order-items" id="orderItems">
+                        <span style="color:#999; font-size:1.1rem;">（請按開始營業）</span>
+                    </div>
+                </div>
+
+                <div class="tray-area">
+                    <div class="tray-title">📥 你的工作餐盤（點擊拿掉）：</div>
+                    <div class="tray-contents" id="trayContents"></div>
+                    
+                    <div class="action-buttons">
+                        <button class="btn btn-clear" onclick="clearTray()">🗑️ 重來</button>
+                        <button class="btn btn-submit" onclick="submitOrder()">🚀 送餐收錢！</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-panel">
+                <div class="menu-category" style="border-left: 5px solid #a5d6a7;">
+                    <div class="category-title">🍵 飲料區 <span class="price-badge">每樣 10 元</span></div>
+                    <div class="grid-buttons" id="menu-tea"></div>
+                </div>
+                <div class="menu-category" style="border-left: 5px solid #bcaaa4;">
+                    <div class="category-title">🍔 漢堡區 <span class="price-badge">每樣 50 元</span></div>
+                    <div class="grid-buttons" id="menu-burger"></div>
+                </div>
+                <div class="menu-category" style="border-left: 5px solid #ffcc80;">
+                    <div class="category-title">🍟 配餐區 <span class="price-badge">每樣 30 元</span></div>
+                    <div class="grid-buttons" id="menu-side"></div>
+                </div>
+                <div class="menu-category" style="border-left: 5px solid #ce93d8;">
+                    <div class="category-title">🍦 甜點區 <span class="price-badge">每樣 20 元</span></div>
+                    <div class="grid-buttons" id="menu-ice"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="winModal">
+        <div class="modal-content">
+            <h2>🎉 老闆賺大錢 🎉</h2>
+            <p style="font-size: 1.3rem; font-weight: bold;">恭喜你達到目標收入了！超級厲害！</p>
+            <button onclick="restartGame()">繼續挑戰</button>
+        </div>
+    </div>
+
+    <script>
+        // 20款品項資料庫
+        const itemDatabase = {
+            tea: [
+                { id: "t1", icon: "☕", label: "紅茶", color: "#ffcdd2" },
+                { id: "t2", icon: "🍵", label: "綠茶", color: "#c8e6c9" },
+                { id: "t3", icon: "🧋", label: "奶茶", color: "#d7ccc8" },
+                { id: "t4", icon: "🫖", label: "烏龍", color: "#ffe0b2" },
+                { id: "t5", icon: "🍹", label: "果汁", color: "#fff9c4" }
+            ],
+            burger: [
+                { id: "b1", icon: "🍔🥩", label: "牛肉堡", color: "#f5cba7" },
+                { id: "b2", icon: "🍔🍗", label: "雞腿堡", color: "#f9e79f" },
+                { id: "b3", icon: "🍔🥓", label: "豬肉堡", color: "#f8c471" },
+                { id: "b4", icon: "🍔🐟", label: "鱈魚堡", color: "#aed6f1" },
+                { id: "b5", icon: "🍔🥬", label: "蔬菜堡", color: "#abebc6" }
+            ],
+            side: [
+                { id: "s1", icon: "🍟", label: "薯條", color: "#ffccbc" },
+                { id: "s2", icon: "🍗", label: "雞塊", color: "#ffe082" },
+                { id: "s3", icon: "🧅", label: "洋蔥圈", color: "#e1bee7" },
+                { id: "s4", icon: "🌽🥣", label: "玉米湯", color: "#fff9c4" },
+                { id: "s5", icon: "🥗🥬", label: "沙拉", color: "#abebc6" }
+            ],
+            ice: [
+                { id: "i1", icon: "🍦", label: "香草冰淇淋", color: "#ffffff" }, // 微調語音標籤讓發音更自然
+                { id: "i2", icon: "🍨", label: "巧克力冰淇淋", color: "#d7ccc8" },
+                { id: "i3", icon: "🍦🍓", label: "草莓冰淇淋", color: "#f8bbd0" },
+                { id: "i4", icon: "🍦🍵", label: "抹茶冰淇淋", color: "#c8e6c9" },
+                { id: "i5", icon: "🍨🍒", label: "冰淇淋聖代", color: "#e1bee7" }
+            ]
+        };
+
+        const priceRules = { 't': 10, 'b': 50, 's': 30, 'i': 20 };
+
+        const allItemsMap = {};
+        for (let cat in itemDatabase) {
+            itemDatabase[cat].forEach(item => {
+                allItemsMap[item.id] = item;
+            });
+        }
+
+        let currentIncome = 0;
+        let targetIncome = 500;
+        let currentOrder = []; 
+        let currentTray = [];  
+
+        window.onload = function() {
+            renderMenu();
+            initTeacherPanel();
+            // 預先觸發語音引擎加載
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.getVoices();
+            }
+        };
+
+        // 核心語音合成函式 (中文台灣真人發音)
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                // 如果前一個音還沒講完，直接切斷（避免過度點擊造成的語音累積延遲）
+                window.speechSynthesis.cancel(); 
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'zh-TW'; // 設定台灣中文
+                utterance.rate = 1.0;     // 正常速度
+                utterance.pitch = 1.1;    // 稍微高亢有親和力的語調
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function startGame() {
+            document.getElementById("startOverlay").style.display = "none";
+            speak("大老闆漢堡店開張囉！請看客人的點單。");
+            generateNewOrder();
+        }
+
+        function createTokenHTML(item) {
+            // 顯示簡短中文，語音使用資料庫內的完整標籤
+            let displayLabel = item.label.replace("冰淇淋", ""); 
+            return `
+                <div class="food-token" style="background-color: ${item.color}; border-color: ${item.color};">
+                    <div class="token-icon">${item.icon}</div>
+                    <div class="token-label">${displayLabel}</div>
+                </div>
+            `;
+        }
+
+        function renderMenu() {
+            for (let category in itemDatabase) {
+                const container = document.getElementById(`menu-${category}`);
+                itemDatabase[category].forEach(item => {
+                    const btn = document.createElement("button");
+                    btn.className = "item-btn-card";
+                    btn.innerHTML = createTokenHTML(item);
+                    btn.onclick = () => addToTray(item.id);
+                    container.appendChild(btn);
+                });
+            }
+        }
+
+        function initTeacherPanel() {
+            const input = document.getElementById("targetIncomeInput");
+            const label = document.getElementById("targetIncomeLabel");
+            
+            input.addEventListener("input", function() {
+                let val = parseInt(this.value);
+                if (isNaN(val) || val <= 0) val = 50;
+                targetIncome = val;
+                label.innerText = targetIncome;
+                checkWinCondition(); 
+            });
+        }
+
+        function generateNewOrder() {
+            currentOrder = [];
+            const allIds = Object.keys(allItemsMap);
+            const itemCount = Math.floor(Math.random() * 3) + 1; 
+            
+            for (let i = 0; i < itemCount; i++) {
+                const randomId = allIds[Math.floor(Math.random() * allIds.length)];
+                currentOrder.push(randomId);
+            }
+
+            const orderContainer = document.getElementById("orderItems");
+            orderContainer.innerHTML = "";
+            currentOrder.forEach(id => {
+                const item = allItemsMap[id];
+                const tokenWrapper = document.createElement("div");
+                tokenWrapper.innerHTML = createTokenHTML(item);
+                orderContainer.appendChild(tokenWrapper.firstElementChild);
+            });
+
+            clearTray();
+        }
+
+        function addToTray(id) {
+            if (document.getElementById("startOverlay").style.display !== "none") return;
+            if (currentTray.length >= 6) return; 
+            
+            // 🔊 語音回饋 1：點擊餐點按鈕時讀出品項名稱
+            const item = allItemsMap[id];
+            speak(item.label);
+
+            currentTray.push(id);
+            renderTray();
+        }
+
+        function clearTray() {
+            currentTray = [];
+            renderTray();
+        }
+
+        function renderTray() {
+            const trayContainer = document.getElementById("trayContents");
+            trayContainer.innerHTML = "";
+            currentTray.forEach((id, index) => {
+                const item = allItemsMap[id];
+                const tokenWrapper = document.createElement("div");
+                tokenWrapper.innerHTML = createTokenHTML(item);
+                
+                const element = tokenWrapper.firstElementChild;
+                element.style.cursor = "pointer";
+                element.onclick = () => {
+                    // 點擊餐盤拿掉時，發出放下的輔助提示語音
+                    speak("拿掉" + item.label);
+                    currentTray.splice(index, 1);
+                    renderTray();
+                };
+                trayContainer.appendChild(element);
+            });
+        }
+
+        function submitOrder() {
+            if (document.getElementById("startOverlay").style.display !== "none") return;
+            if (currentTray.length === 0) {
+                speak("盤子空空的喔！");
+                alert("盤子空空的喔！請先選一樣的圖形放進來。");
+                return;
+            }
+
+            const sortedOrder = [...currentOrder].sort();
+            const sortedTray = [...currentTray].sort();
+
+            const isCorrect = sortedOrder.length === sortedTray.length && 
+                              sortedOrder.every((val, index) => val === sortedTray[index]);
+
+            if (isCorrect) {
+                let orderEarnings = 0;
+                currentOrder.forEach(id => {
+                    const categoryPrefix = id.charAt(0); 
+                    orderEarnings += priceRules[categoryPrefix] || 0;
+                });
+
+                currentIncome += orderEarnings;
+                document.getElementById("currentIncome").innerText = currentIncome;
+                
+                // 🔊 語音回饋 2：每單成功配對後的正向收入回饋語音
+                speak(`太棒了！答對了！恭喜你賺到了 ${orderEarnings} 元！`);
+                alert(`👍 答對了！這張訂單幫你賺了 ${orderEarnings} 元！`);
+                
+                if (!checkWinCondition()) {
+                    generateNewOrder();
+                }
+            } else {
+                // 🔊 語音回饋 3：配對失敗時的引導語音
+                speak("圖形看起來不太一樣喔，再仔細看一看吧！");
+                alert("❌ 哎呀，餐點圖形看起來不太一樣喔，再仔細對對看客人的訂單！");
+            }
+        }
+
+        function checkWinCondition() {
+            if (currentIncome >= targetIncome) {
+                // 🔊 語音回饋 4：達成終極目標大關卡的破關語音
+                setTimeout(() => {
+                    speak("大豐收！恭喜你達到目標收入，你超級厲害！");
+                }, 1500);
+                document.getElementById("winModal").style.display = "flex";
+                return true;
+            }
+            return false;
+        }
+
+        function restartGame() {
+            currentIncome = 0;
+            document.getElementById("currentIncome").innerText = currentIncome;
+            document.getElementById("winModal").style.display = "none";
+            document.getElementById("startOverlay").style.display = "flex"; 
+            document.getElementById("orderItems").innerHTML = '<span style="color:#999; font-size:1.1rem;">（請按開始營業）</span>';
+            clearTray();
+        }
+    </script>
+</body>
+</html>
