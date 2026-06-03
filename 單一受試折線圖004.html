@@ -61,7 +61,7 @@
 <body>
 
 <div class="container">
-    <h2>單一受試研究數據分析儀 (寬螢幕學術版)</h2>
+    <h2>單一受試研究目視分析折線圖 (寬螢幕學術版)</h2>
     
     <div class="input-area">
         <div class="setting-section">
@@ -102,7 +102,7 @@
 
         <div class="setting-section">
             <div class="section-title">各階段數據與外觀設定</div>
-            <p style="font-size: 0.8em; color: #94a3b8; margin: 0 0 12px 0;">格式：階段名稱, 數據1, 數據2... 您可以自訂外觀，並透過下方開關控制輔助圖層與數字標籤。</p>
+            <p style="font-size: 0.8em; color: #94a3b8; margin: 0 0 12px 0;">格式：階段名稱, 數據1, 數據2... 您可以自訂外觀，並透過下方開關控制輔助圖層與數字標籤</p>
             
             <div id="dynamicRowsContainer">
             </div>
@@ -326,11 +326,12 @@ function drawChart() {
                 });
             }
 
-            // 3. 平均線與平均數文字
+            // 3. 平均線與平均數文字單獨處理
             if (vals.length > 0) {
                 const sum = vals.reduce((a, b) => a + b, 0);
                 const avg = Math.round((sum / vals.length) * 10) / 10; 
                 
+                // 獨立控制：畫平均線
                 if (showMean) {
                     const meanPoints = [{ x: stX, y: avg }, { x: edX, y: avg }];
                     datasets.push({
@@ -344,16 +345,17 @@ function drawChart() {
                     });
                 }
 
+                // ⭐ 獨立控制：顯示平均數文字，並精準定位在平均線的最前端 (stX)
                 if (showMeanText) {
                     stageLabels[`meanText_${i}`] = {
                         type: 'label',
                         xValue: stX,
                         yValue: avg,
-                        yAdjust: -12, 
-                        xAdjust: 18,  
+                        yAdjust: -12, // 微微向上浮動，完美貼合在平均線的正上方前端
+                        xAdjust: 18,  // 稍微往右移一點，避免貼死在最左邊的分隔垂直線上
                         content: `M = ${avg}`,
                         color: color,
-                        backgroundColor: 'rgba(255, 255, 255, 0.85)', 
+                        backgroundColor: 'rgba(255, 255, 255, 0.85)', // 精緻的透白遮罩底色
                         padding: { top: 2, bottom: 2, left: 5, right: 5 },
                         borderRadius: 4,
                         font: {
@@ -376,14 +378,14 @@ function drawChart() {
                 font: { size: 16, weight: '800', family: 'Microsoft JhengHei' }
             };
 
-            // 5. 階段分隔垂直線 (⭐ 核心修改：顏色由 #cbd5e1 加深至 #475569，粗細調至 2.5)
+            // 5. 階段分隔垂直線
             if (currentValidIndex < validLineCount - 1) {
                 stageLabels[`line${i}`] = {
                     type: 'line',
                     xMin: edX + 0.5,
                     xMax: edX + 0.5,
-                    borderColor: '#475569',
-                    borderWidth: 2.5,
+                    borderColor: '#cbd5e1',
+                    borderWidth: 2,
                     borderDash: [8, 8]
                 };
             }
@@ -461,10 +463,38 @@ function drawChart() {
                 },
                 plugins: {
                     legend: { display: false },
-                    annotation: { annotations: stageLabels }
+                    annotation: { annotations: stageLabels },
+                    filler: {}
                 }
             }
         });
+
+        // 在圖表渲染後手動加深軸線顏色
+        const canvas = document.getElementById('myChart');
+        const computedStyle = window.getComputedStyle(canvas);
+        
+        // 使用 Canvas 上下文直接繪製加深的軸線
+        setTimeout(() => {
+            const ctx = canvas.getContext('2d');
+            const chartArea = chartInstance.chartArea;
+            
+            // 繪製加深的Y軸線（縱軸）
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(chartArea.left, chartArea.top);
+            ctx.lineTo(chartArea.left, chartArea.bottom);
+            ctx.stroke();
+            
+            // 繪製加深的X軸線（橫軸）
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(chartArea.left, chartArea.bottom);
+            ctx.lineTo(chartArea.right, chartArea.bottom);
+            ctx.stroke();
+        }, 50);
+
     } catch (err) {
         console.error(err);
         alert("圖表渲染失敗，請確認數據輸入格式。");
@@ -474,7 +504,7 @@ function drawChart() {
 function downloadChart() {
     if (!chartInstance) return;
     const link = document.createElement('a');
-    link.download = 'ABAB_Bold_Divider_Report.png';
+    link.download = 'ABAB_Advanced_Report.png';
     link.href = chartInstance.toBase64Image();
     link.click();
 }
