@@ -61,7 +61,7 @@
 <body>
 
 <div class="container">
-    <h2>單一受試研究目視分析折線圖 (寬螢幕學術版)</h2>
+    <h2>單一受試研究數據分析儀 (寬螢幕學術版)</h2>
     
     <div class="input-area">
         <div class="setting-section">
@@ -102,7 +102,7 @@
 
         <div class="setting-section">
             <div class="section-title">各階段數據與外觀設定</div>
-            <p style="font-size: 0.8em; color: #94a3b8; margin: 0 0 12px 0;">格式：階段名稱, 數據1, 數據2... 您可以自訂外觀，並透過下方開關控制輔助圖層與數字標籤</p>
+            <p style="font-size: 0.8em; color: #94a3b8; margin: 0 0 12px 0;">格式：階段名稱, 數據1, 數據2... 您可以自訂外觀，並透過下方開關控制輔助圖層與數字標籤。</p>
             
             <div id="dynamicRowsContainer">
             </div>
@@ -326,12 +326,11 @@ function drawChart() {
                 });
             }
 
-            // 3. 平均線與平均數文字單獨處理
+            // 3. 平均線與平均數文字
             if (vals.length > 0) {
                 const sum = vals.reduce((a, b) => a + b, 0);
                 const avg = Math.round((sum / vals.length) * 10) / 10; 
                 
-                // 獨立控制：畫平均線
                 if (showMean) {
                     const meanPoints = [{ x: stX, y: avg }, { x: edX, y: avg }];
                     datasets.push({
@@ -345,17 +344,16 @@ function drawChart() {
                     });
                 }
 
-                // ⭐ 獨立控制：顯示平均數文字，並精準定位在平均線的最前端 (stX)
                 if (showMeanText) {
                     stageLabels[`meanText_${i}`] = {
                         type: 'label',
                         xValue: stX,
                         yValue: avg,
-                        yAdjust: -12, // 微微向上浮動，完美貼合在平均線的正上方前端
-                        xAdjust: 18,  // 稍微往右移一點，避免貼死在最左邊的分隔垂直線上
+                        yAdjust: -12, 
+                        xAdjust: 18,  
                         content: `M = ${avg}`,
                         color: color,
-                        backgroundColor: 'rgba(255, 255, 255, 0.85)', // 精緻的透白遮罩底色
+                        backgroundColor: 'rgba(255, 255, 255, 0.85)', 
                         padding: { top: 2, bottom: 2, left: 5, right: 5 },
                         borderRadius: 4,
                         font: {
@@ -384,8 +382,8 @@ function drawChart() {
                     type: 'line',
                     xMin: edX + 0.5,
                     xMax: edX + 0.5,
-                    borderColor: '#cbd5e1',
-                    borderWidth: 2,
+                    borderColor: '#475569',
+                    borderWidth: 2.5,
                     borderDash: [8, 8]
                 };
             }
@@ -402,7 +400,7 @@ function drawChart() {
             yValue: yMin,
             yAdjust: 18, 
             content: String(xStart),
-            color: '#64748b',
+            color: '#475569', // 配合軸線一併加深刻度字體顏色
             font: { size: 12, weight: 'bold', family: 'Microsoft JhengHei' }
         };
 
@@ -412,7 +410,7 @@ function drawChart() {
             yValue: yMin,
             yAdjust: 18, 
             content: String(xEnd),
-            color: '#64748b',
+            color: '#475569', // 配合軸線一併加深刻度字體顏色
             font: { size: 12, weight: 'bold', family: 'Microsoft JhengHei' }
         };
 
@@ -430,12 +428,13 @@ function drawChart() {
                 scales: {
                     x: {
                         type: 'linear',
-                        title: { display: true, text: xTitle, font: { size: 14, weight: 'bold' } },
+                        title: { display: true, text: xTitle, font: { size: 14, weight: 'bold', family: 'Microsoft JhengHei' } },
                         min: xStart - 0.5,
                         max: xEnd + 0.5,
                         ticks: { 
                             stepSize: 1, 
                             precision: 0,
+                            color: '#475569', // 加深一般天數刻度文字
                             callback: function(value) {
                                 if (value === xStart || value === xEnd) {
                                     return ''; 
@@ -450,6 +449,12 @@ function drawChart() {
                                 return '';
                             }
                         },
+                        // ⭐ 核心修改：加深 X 軸最底部的橫軸線
+                        border: {
+                            display: true,
+                            color: '#475569',
+                            width: 2
+                        },
                         grid: { display: false }
                     },
                     y: {
@@ -457,44 +462,25 @@ function drawChart() {
                         title: { display: false }, 
                         min: yMin,
                         max: yMax,
-                        ticks: { stepSize: yStep },
+                        ticks: { 
+                            stepSize: yStep,
+                            color: '#475569' // 加深 Y 軸刻度文字
+                        },
+                        // ⭐ 核心修改：加深 Y 軸最左側的縱軸線
+                        border: {
+                            display: true,
+                            color: '#475569',
+                            width: 2
+                        },
                         grid: { display: false }
                     }
                 },
                 plugins: {
                     legend: { display: false },
-                    annotation: { annotations: stageLabels },
-                    filler: {}
+                    annotation: { annotations: stageLabels }
                 }
             }
         });
-
-        // 在圖表渲染後手動加深軸線顏色
-        const canvas = document.getElementById('myChart');
-        const computedStyle = window.getComputedStyle(canvas);
-        
-        // 使用 Canvas 上下文直接繪製加深的軸線
-        setTimeout(() => {
-            const ctx = canvas.getContext('2d');
-            const chartArea = chartInstance.chartArea;
-            
-            // 繪製加深的Y軸線（縱軸）
-            ctx.strokeStyle = '#0f172a';
-            ctx.lineWidth = 2.5;
-            ctx.beginPath();
-            ctx.moveTo(chartArea.left, chartArea.top);
-            ctx.lineTo(chartArea.left, chartArea.bottom);
-            ctx.stroke();
-            
-            // 繪製加深的X軸線（橫軸）
-            ctx.strokeStyle = '#0f172a';
-            ctx.lineWidth = 2.5;
-            ctx.beginPath();
-            ctx.moveTo(chartArea.left, chartArea.bottom);
-            ctx.lineTo(chartArea.right, chartArea.bottom);
-            ctx.stroke();
-        }, 50);
-
     } catch (err) {
         console.error(err);
         alert("圖表渲染失敗，請確認數據輸入格式。");
@@ -504,7 +490,7 @@ function drawChart() {
 function downloadChart() {
     if (!chartInstance) return;
     const link = document.createElement('a');
-    link.download = 'ABAB_Advanced_Report.png';
+    link.download = 'ABAB_Perfect_Axes_Report.png';
     link.href = chartInstance.toBase64Image();
     link.click();
 }
