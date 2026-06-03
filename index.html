@@ -157,8 +157,9 @@
         
         .link-url {
             color: #999;
-            font-size: 0.9em;
+            font-size: 0.85em;
             word-break: break-all;
+            margin-bottom: 5px;
         }
         
         .link-actions {
@@ -303,7 +304,7 @@
                 <input type="text" id="newLinkTitle" placeholder="連結標題">
             </div>
             <div class="form-group">
-                <input type="text" id="newLinkUrl" placeholder="輸入完整 URL (例如: https://example.com 或相對路徑 example.html)">
+                <input type="text" id="newLinkUrl" placeholder="輸入完整 URL (例如: https://goodfishilc.github.io/singlesubject/example.html)">
             </div>
             <div class="form-group">
                 <input type="text" id="newLinkCategory" placeholder="分類 (選填)">
@@ -323,20 +324,20 @@
     <script>
         // 本地存儲 key
         const STORAGE_KEY = 'singlesubject_links';
-        const REPO_BASE = 'https://raw.githubusercontent.com/goodfishilc/singlesubject/main/';
+        const GITHUB_PAGES_BASE = 'https://goodfishilc.github.io/singlesubject/';
         
-        // 初始連結數據 - 使用網頁連結而非硬碟連結
+        // 初始連結數據 - 使用 GitHub Pages 格式的完整 URL
         const defaultLinks = [
             {
                 id: 1,
                 title: '便利商店',
-                url: 'convenience_store.html',
+                url: 'https://goodfishilc.github.io/singlesubject/convenience_store.html',
                 category: '應用程序'
             },
             {
                 id: 2,
                 title: '單一受試折線圖',
-                url: '單一受試折線圖004.html',
+                url: 'https://goodfishilc.github.io/singlesubject/%E5%96%AE%E4%B8%80%E5%8F%97%E8%A9%A6%E6%8A%98%E7%B7%9A%E5%9C%96004.html',
                 category: '數據視覺化'
             }
         ];
@@ -366,13 +367,9 @@
             localStorage.setItem(STORAGE_KEY, JSON.stringify(links));
         }
         
-        // 轉換 URL 為完整路徑
-        function getFullUrl(url) {
-            if (url.startsWith('http://') || url.startsWith('https://')) {
-                return url;
-            }
-            // 相對路徑使用完整 URL
-            return './' + url;
+        // 驗證 URL 格式
+        function isValidUrl(url) {
+            return url.startsWith('http://') || url.startsWith('https://');
         }
         
         // 渲染連結列表
@@ -386,21 +383,20 @@
             }
             
             linksList.innerHTML = links.map(link => {
-                const fullUrl = getFullUrl(link.url);
                 const categoryHtml = link.category ? `<span class="category-badge">${link.category}</span><br>` : '';
                 
                 return `
                     <li class="link-item">
                         <div class="link-content">
                             ${categoryHtml}
-                            <a href="${fullUrl}" target="_blank" rel="noopener noreferrer">
+                            <a href="${link.url}" target="_blank" rel="noopener noreferrer">
                                 ${link.title || '未命名連結'}
                             </a>
                             <div class="link-url">${link.url}</div>
                         </div>
                         <div class="link-actions">
-                            <button class="btn-small btn-open" onclick="openLink('${fullUrl}')">打開</button>
-                            <button class="btn-small btn-copy" onclick="copyLink('${fullUrl}')">複製</button>
+                            <button class="btn-small btn-open" onclick="openLink('${link.url}')">打開</button>
+                            <button class="btn-small btn-copy" onclick="copyLink('${link.url}')">複製</button>
                             <button class="btn-small btn-delete" onclick="deleteLink(${link.id})">刪除</button>
                         </div>
                     </li>
@@ -446,6 +442,11 @@
             
             if (!url) {
                 showStatus('❌ 請輸入連結 URL', 'success', 2000);
+                return;
+            }
+            
+            if (!isValidUrl(url)) {
+                showStatus('❌ 請輸入有效的 URL (以 http:// 或 https:// 開頭)', 'success', 2000);
                 return;
             }
             
