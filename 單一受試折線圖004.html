@@ -56,6 +56,17 @@
             padding-left: 5px;
         }
         .chart-box { flex: 1; height: 600px; position: relative; }
+        
+        /* 版權字樣樣式 */
+        .copyright-footer { 
+            margin-top: 30px; 
+            padding-top: 20px; 
+            border-top: 1px solid #e2e8f0; 
+            text-align: right; 
+            font-size: 0.8em; 
+            color: #94a3b8; 
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -102,7 +113,7 @@
 
         <div class="setting-section">
             <div class="section-title">各階段數據與外觀設定</div>
-            <p style="font-size: 0.8em; color: #94a3b8; margin: 0 0 12px 0;">格式：階段名稱, 數據1, 數據2... 您可以自訂外觀，並透過下方開關控制輔助圖層與數字標籤。</p>
+            <p style="font-size: 0.8em; color: #94a3b8; margin: 0 0 12px 0;">格式：階段名稱, 數據1, 數據2... 您可以自訂外觀，並透過下方開關控制輔助圖層與數字標籤</p>
             
             <div id="dynamicRowsContainer">
             </div>
@@ -136,6 +147,8 @@
             <canvas id="myChart"></canvas>
         </div>
     </div>
+    
+    <div class="copyright-footer">© 俞昭銘@GEMINI</div>
 </div>
 
 <script>
