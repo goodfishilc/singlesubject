@@ -20,17 +20,61 @@
         input, textarea, select { width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; box-sizing: border-box; background-color: white; transition: border-color 0.2s; }
         input:focus, textarea:focus, select:focus { border-color: #3b82f6; outline: none; }
         
-        /* 動態數據列樣式 */
-        .data-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-        .data-row input[type="text"] { flex: 1; }
-        .data-row select.stage-color-input { width: 180px; height: 40px; } 
-        .data-row select.stage-shape-input { width: 110px; height: 40px; }
-        .btn-row-del { background-color: #ef4444; color: white; border: none; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .data-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; position: relative; }
+        
+        .stage-name-input { width: 150px; flex-shrink: 0; }
+        .stage-data-input { flex: 1; }
+        
+        /* 核心改動：自定義色塊下拉選單樣式 */
+        .color-picker-wrapper { position: relative; flex-shrink: 0; }
+        .color-block-btn {
+            width: 45px;
+            height: 40px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s;
+            box-sizing: border-box;
+        }
+        .color-block-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* 彈出的 12 色色塊選單面板 (不要調色盤) */
+        .color-menu-panel {
+            display: none;
+            position: absolute;
+            top: 45px;
+            left: 0;
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            z-index: 100;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            width: 144px;
+            box-sizing: border-box;
+        }
+        .color-menu-panel.active { display: grid; }
+        .color-option {
+            width: 26px;
+            height: 26px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid rgba(0,0,0,0.1);
+            transition: transform 0.1s;
+        }
+        .color-option:hover { transform: scale(1.15); box-shadow: 0 2px 4px rgba(0,0,0,0.15); }
+        
+        .data-row select.stage-shape-input { width: 110px; height: 40px; flex-shrink: 0; }
+        .btn-row-del { background-color: #ef4444; color: white; border: none; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: bold; flex-shrink: 0; }
         .btn-row-del:hover { background-color: #dc2626; }
         .btn-row-add { background-color: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; margin-top: 5px; }
         .btn-row-add:hover { background-color: #475569; }
 
-        /* 圖層開關樣式 */
         .display-controls { display: flex; flex-wrap: wrap; gap: 24px; padding: 5px 5px 15px 5px; border-bottom: 1px dashed #e2e8f0; margin-bottom: 15px; }
         .control-checkbox { display: flex; align-items: center; gap: 8px; font-size: 0.95em; font-weight: 600; color: #334155; cursor: pointer; }
         .control-checkbox input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
@@ -42,7 +86,6 @@
         .btn-download { background-color: #059669; }
         .btn-download:hover { background-color: #047857; transform: translateY(-1px); }
         
-        /* 垂直 Y 軸標題容器 */
         .chart-wrapper { display: flex; align-items: center; margin-top: 30px; gap: 10px; background: white; border: 1px solid #f1f5f9; border-radius: 12px; padding: 15px; }
         
         .custom-y-title {
@@ -57,7 +100,6 @@
         }
         .chart-box { flex: 1; height: 600px; position: relative; }
         
-        /* 版權字樣樣式 */
         .copyright-footer { 
             margin-top: 30px; 
             padding-top: 20px; 
@@ -113,11 +155,11 @@
 
         <div class="setting-section">
             <div class="section-title">各階段數據與外觀設定</div>
-            <p style="font-size: 0.8em; color: #94a3b8; margin: 0 0 12px 0;">格式：階段名稱, 數據1, 數據2... 您可以自訂外觀，並透過下方開關控制輔助圖層與數字標籤</p>
+            <p style="font-size: 0.8em; color: #94a3b8; margin: 0 0 12px 0;">提示：請分開輸入「階段名稱」與「純數據（以逗號隔開）」。點擊顏色方塊可展開 12 色學術選單。</p>
             
             <div id="dynamicRowsContainer">
             </div>
-            <button type="button" class="btn-row-add" onclick="addDataRow('', '', '')">+ 新增數據階段</button>
+            <button type="button" class="btn-row-add" onclick="addDataRow('', '', '', '')">+ 新增數據階段</button>
         </div>
 
         <div class="display-controls">
@@ -158,58 +200,77 @@ if (window.ChartAnnotation) {
 
 let chartInstance = null;
 
-const academic20Colors = [
-    { name: "曜石黑 (Charcoal)", hex: "#0f172a" },
-    { name: "古典藍 (Classic Blue)", hex: "#1e3a8a" },
-    { name: "天青藍 (Sky Blue)", hex: "#0284c7" },
-    { name: "湖水綠 (Teal)", hex: "#0d9488" },
-    { name: "森林綠 (Forest Green)", hex: "#16a34a" },
-    { name: "鮮橘紅 (Burnt Orange)", hex: "#ea580c" },
-    { name: "酒紅 (Crimson)", hex: "#991b1b" },
-    { name: "皇家紫 (Purple)", hex: "#7c3aed" },
-    { name: "玫瑰粉 (Rose)", hex: "#e11d48" },
-    { name: "胭脂紅 (Ruby)", hex: "#dc2626" },
-    { name: "石板灰 (Slate)", hex: "#475569" },
-    { name: "莫蘭迪藍 (Denim)", hex: "#4682b4" },
-    { name: "橄欖綠 (Olive)", hex: "#556b2f" },
-    { name: "芥末黃 (Mustard)", hex: "#d97706" },
-    { name: "巧克力棕 (Brown)", hex: "#78350f" },
-    { name: "絳紫 (Plum)", hex: "#581c87" },
-    { name: "珊瑚紅 (Coral)", hex: "#f43f5e" },
-    { name: "薄荷綠 (Mint)", hex: "#10b981" },
-    { name: "深海藍 (Navy)", hex: "#172554" },
-    { name: "豆沙紅 (Mauve)", hex: "#b45309" }
+// 12種學術專用高級色
+const academic12Colors = [
+    "#0f172a", "#1e3a8a", "#ea580c", "#16a34a", "#991b1b", 
+    "#0284c7", "#7c3aed", "#0d9488", "#e11d48", "#475569", 
+    "#d97706", "#78350f"
 ];
 
 const defaultShapes = ['circle', 'rect', 'triangle', 'rectRot', 'cross'];
 
 const initialData = [
-    { text: "基線 A1, 100, 95, 95, 100, 100", color: academic20Colors[0].hex, shape: defaultShapes[0] },
-    { text: "介入 B1, 100, 80, 80, 60, 60", color: academic20Colors[5].hex, shape: defaultShapes[1] },
-    { text: "基線 A2, 70, 70, 80, 90, 80", color: academic20Colors[4].hex, shape: defaultShapes[2] },
-    { text: "介入 B2, 60, 60, 50, 20, 20", color: academic20Colors[2].hex, shape: defaultShapes[3] }
+    { name: "基線 A1", data: "100, 95, 95, 100, 100", color: academic12Colors[0], shape: defaultShapes[0] },
+    { name: "介入 B1", data: "100, 80, 80, 60, 60", color: academic12Colors[2], shape: defaultShapes[1] },
+    { name: "基線 A2", data: "70, 70, 80, 90, 80", color: academic12Colors[3], shape: defaultShapes[2] },
+    { name: "介入 B2", data: "60, 60, 50, 20, 20", color: academic12Colors[5], shape: defaultShapes[3] }
 ];
 
-function addDataRow(textValue = '', colorValue = '', shapeValue = '') {
+// 控制下拉選單的顯示與隱藏
+function toggleColorMenu(event, btnElement) {
+    event.stopPropagation();
+    // 關閉其他所有開啟的選單
+    document.querySelectorAll('.color-menu-panel').forEach(panel => {
+        if (panel !== btnElement.nextElementSibling) panel.classList.remove('active');
+    });
+    // 切換當前選單
+    btnElement.nextElementSibling.classList.toggle('active');
+}
+
+// 選擇顏色後的處理想法
+function selectColor(btnElement, panelElement, selectedColor) {
+    btnElement.setAttribute('data-color', selectedColor);
+    btnElement.style.backgroundColor = selectedColor;
+    panelElement.classList.remove('active');
+    drawChart(); // 選擇後自動重新繪製圖表
+}
+
+// 點擊網頁其他地方時，自動收起色塊選單
+document.addEventListener('click', () => {
+    document.querySelectorAll('.color-menu-panel').forEach(panel => panel.classList.remove('active'));
+});
+
+function addDataRow(nameValue = '', dataValue = '', colorValue = '', shapeValue = '') {
     const container = document.getElementById('dynamicRowsContainer');
     const rowCount = container.children.length;
     
-    const finalColor = colorValue || academic20Colors[rowCount % academic20Colors.length].hex;
+    const finalColor = colorValue || academic12Colors[rowCount % academic12Colors.length];
     const finalShape = shapeValue || defaultShapes[rowCount % defaultShapes.length];
-    
-    let colorOptionsHtml = "";
-    academic20Colors.forEach(c => {
-        const isSelected = c.hex.toLowerCase() === finalColor.toLowerCase() ? 'selected' : '';
-        colorOptionsHtml += `<option value="${c.hex}" ${isSelected}>■ ${c.name}</option>`;
+
+    // 生成 12 色矩陣選單的 HTML
+    let menuOptionsHTML = '';
+    academic12Colors.forEach(color => {
+        menuOptionsHTML += `<div class="color-option" style="background-color: ${color};" onclick="selectColor(this.parentElement.previousElementSibling, this.parentElement, '${color}')"></div>`;
     });
 
     const rowDiv = document.createElement('div');
     rowDiv.className = 'data-row';
     rowDiv.innerHTML = `
-        <input type="text" class="stage-data-input" value="${textValue}" placeholder="例如：階段名稱, 50, 60, 70">
-        <select class="stage-color-input" title="選擇線條顏色">
-            ${colorOptionsHtml}
-        </select>
+        <input type="text" class="stage-name-input" value="${nameValue}" placeholder="階段名稱">
+        <input type="text" class="stage-data-input" value="${dataValue}" placeholder="數據，例如: 50, 60, 70">
+        
+        <div class="color-picker-wrapper">
+            <div class="color-block-btn stage-color-input" 
+                 data-color="${finalColor}" 
+                 style="background-color: ${finalColor};" 
+                 title="點擊展開顏色選單"
+                 onclick="toggleColorMenu(event, this)">
+            </div>
+            <div class="color-menu-panel">
+                ${menuOptionsHTML}
+            </div>
+        </div>
+
         <select class="stage-shape-input" title="選擇資料點形狀">
             <option value="circle" ${finalShape === 'circle' ? 'selected' : ''}>● 圓形</option>
             <option value="rect" ${finalShape === 'rect' ? 'selected' : ''}>■ 正方形</option>
@@ -224,7 +285,7 @@ function addDataRow(textValue = '', colorValue = '', shapeValue = '') {
 
 function initRows() {
     initialData.forEach(item => {
-        addDataRow(item.text, item.color, item.shape);
+        addDataRow(item.name, item.data, item.color, item.shape);
     });
 }
 
@@ -257,7 +318,8 @@ function drawChart() {
         const showMeanText = document.getElementById('showMeanTextCheck').checked;
         const showValue = document.getElementById('showValueCheck').checked;
 
-        const rowInputs = document.querySelectorAll('.stage-data-input');
+        const nameInputs = document.querySelectorAll('.stage-name-input');
+        const dataInputs = document.querySelectorAll('.stage-data-input');
         const colorInputs = document.querySelectorAll('.stage-color-input');
         const shapeInputs = document.querySelectorAll('.stage-shape-input');
         
@@ -266,28 +328,26 @@ function drawChart() {
         let dayTracker = xStart;
         
         let validLineCount = 0;
-        rowInputs.forEach((input) => {
+        dataInputs.forEach((input) => {
             if(!input.value.trim()) return;
-            const parts = input.value.split(',');
-            const vals = parts.slice(1).map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+            const vals = input.value.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
             if(vals.length > 0) validLineCount++;
         });
 
         let currentValidIndex = 0;
 
-        rowInputs.forEach((input, i) => {
-            const lineText = input.value.trim();
-            if (!lineText) return;
+        dataInputs.forEach((input, i) => {
+            const dataText = input.value.trim();
+            if (!dataText) return;
             
-            const parts = lineText.split(',');
-            const stageName = parts[0].trim();
-            const vals = parts.slice(1).map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+            const stageName = nameInputs[i].value.trim() || `階段 ${i+1}`;
+            const vals = dataText.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
             if (vals.length === 0) return;
 
             const stX = dayTracker;
             const edX = dayTracker + vals.length - 1;
             
-            const color = colorInputs[i].value;
+            const color = colorInputs[i].getAttribute('data-color');
             const shape = shapeInputs[i].value;
 
             let pts = vals.map((v, idx) => ({ x: dayTracker + idx, y: v }));
@@ -307,21 +367,31 @@ function drawChart() {
                 tension: 0
             });
 
-            // 數據點數字呈現
+            // 智慧防撞數據點數字邏輯
             if (showValue) {
                 pts.forEach((pt, ptIdx) => {
+                    let pointYAdjust = -18; 
+                    const currentY = vals[ptIdx];
+                    const prevY = (ptIdx > 0) ? vals[ptIdx - 1] : null;
+                    const nextY = (ptIdx < vals.length - 1) ? vals[ptIdx + 1] : null;
+
+                    if (prevY !== null && nextY !== null) {
+                        if (currentY <= prevY && currentY <= nextY) pointYAdjust = 18;
+                        else if (currentY < prevY && currentY > nextY) pointYAdjust = 16;
+                    } else if (prevY !== null && nextY === null) {
+                        if (currentY < prevY) pointYAdjust = 16;
+                    } else if (prevY === null && nextY !== null) {
+                        if (currentY > nextY) pointYAdjust = 16;
+                    }
+
                     stageLabels[`valLabel_${i}_${ptIdx}`] = {
                         type: 'label',
                         xValue: pt.x,
                         yValue: pt.y,
-                        yAdjust: -14, 
+                        yAdjust: pointYAdjust, 
                         content: String(pt.y),
                         color: color, 
-                        font: {
-                            size: 12,
-                            weight: 'bold',
-                            family: 'Microsoft JhengHei'
-                        }
+                        font: { size: 11, weight: 'bold', family: 'Microsoft JhengHei' }
                     };
                 });
             }
@@ -339,7 +409,7 @@ function drawChart() {
                 });
             }
 
-            // 3. 平均線與平均數文字
+            // 3. 平均線與智慧前端平均數文字
             if (vals.length > 0) {
                 const sum = vals.reduce((a, b) => a + b, 0);
                 const avg = Math.round((sum / vals.length) * 10) / 10; 
@@ -358,22 +428,22 @@ function drawChart() {
                 }
 
                 if (showMeanText) {
+                    const firstPointY = vals[0];
+                    const smartYAdjust = (firstPointY >= avg) ? 18 : -18;
+
                     stageLabels[`meanText_${i}`] = {
                         type: 'label',
-                        xValue: stX,
+                        xValue: stX,      
                         yValue: avg,
-                        yAdjust: -12, 
-                        xAdjust: 18,  
+                        yAdjust: smartYAdjust, 
+                        xAdjust: 22,      
                         content: `M = ${avg}`,
                         color: color,
                         backgroundColor: 'rgba(255, 255, 255, 0.85)', 
+                        border: { color: color, width: 1 },
                         padding: { top: 2, bottom: 2, left: 5, right: 5 },
                         borderRadius: 4,
-                        font: {
-                            size: 13,
-                            weight: 'bold',
-                            family: 'Microsoft JhengHei'
-                        }
+                        font: { size: 11, weight: 'bold', family: 'Microsoft JhengHei' }
                     };
                 }
             }
@@ -383,7 +453,7 @@ function drawChart() {
                 type: 'label',
                 xValue: (stX + edX) / 2,
                 yValue: yMax,
-                yAdjust: -20,
+                yAdjust: -30,
                 content: stageName,
                 color: color,
                 font: { size: 16, weight: '800', family: 'Microsoft JhengHei' }
@@ -406,14 +476,13 @@ function drawChart() {
 
         const xEnd = dayTracker - 1; 
 
-        // 強行固定最左與最右端 X 軸數字
         stageLabels[`forced_xStart_label`] = {
             type: 'label',
             xValue: xStart,
             yValue: yMin,
             yAdjust: 18, 
             content: String(xStart),
-            color: '#475569', // 配合軸線一併加深刻度字體顏色
+            color: '#475569',
             font: { size: 12, weight: 'bold', family: 'Microsoft JhengHei' }
         };
 
@@ -423,7 +492,7 @@ function drawChart() {
             yValue: yMin,
             yAdjust: 18, 
             content: String(xEnd),
-            color: '#475569', // 配合軸線一併加深刻度字體顏色
+            color: '#475569',
             font: { size: 12, weight: 'bold', family: 'Microsoft JhengHei' }
         };
 
@@ -437,7 +506,7 @@ function drawChart() {
                 responsive: true,
                 maintainAspectRatio: false,
                 clip: false,
-                layout: { padding: { top: 45, right: 30, bottom: 20, left: 10 } }, 
+                layout: { padding: { top: 55, right: 30, bottom: 20, left: 10 } }, 
                 scales: {
                     x: {
                         type: 'linear',
@@ -447,27 +516,20 @@ function drawChart() {
                         ticks: { 
                             stepSize: 1, 
                             precision: 0,
-                            color: '#475569', // 加深一般天數刻度文字
+                            color: '#475569', 
+                            tickColor: '#475569', 
+                            width: 2,             
                             callback: function(value) {
-                                if (value === xStart || value === xEnd) {
-                                    return ''; 
-                                }
+                                if (value === xStart || value === xEnd) return ''; 
                                 if (Math.floor(value) === value) {
                                     const totalDays = xEnd - xStart;
-                                    if (totalDays > 25) {
-                                        return (value % 5 === 0) ? value : '';
-                                    }
+                                    if (totalDays > 25) return (value % 5 === 0) ? value : '';
                                     return value;
                                 }
                                 return '';
                             }
                         },
-                        // ⭐ 核心修改：加深 X 軸最底部的橫軸線
-                        border: {
-                            display: true,
-                            color: '#475569',
-                            width: 2
-                        },
+                        border: { display: true, color: '#475569', width: 2 },
                         grid: { display: false }
                     },
                     y: {
@@ -477,14 +539,11 @@ function drawChart() {
                         max: yMax,
                         ticks: { 
                             stepSize: yStep,
-                            color: '#475569' // 加深 Y 軸刻度文字
-                        },
-                        // ⭐ 核心修改：加深 Y 軸最左側的縱軸線
-                        border: {
-                            display: true,
                             color: '#475569',
-                            width: 2
+                            tickColor: '#475569', 
+                            width: 2              
                         },
+                        border: { display: true, color: '#475569', width: 2 },
                         grid: { display: false }
                     }
                 },
