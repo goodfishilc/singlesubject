@@ -17,13 +17,13 @@
         .grid-item { flex: 1; min-width: 220px; }
         
         label { display: block; font-size: 0.85em; color: #64748b; margin-bottom: 6px; font-weight: 600; }
-        input, textarea, select { width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; box-sizing: border-box; background-color: white; transition: border-color 0.3s; }
+        input, textarea, select { width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; box-sizing: border-box; background-color: white; transition: border-color 0.2s; }
         input:focus, textarea:focus, select:focus { border-color: #3b82f6; outline: none; }
         
         /* 動態數據列樣式 */
         .data-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
         .data-row input[type="text"] { flex: 1; }
-        .data-row select.stage-color-input { width: 180px; height: 40px; } 
+        .data-row select.stage-color-input { width: 180px; height: 40px; padding: 2px 4px; } 
         .data-row select.stage-shape-input { width: 110px; height: 40px; }
         .btn-row-del { background-color: #ef4444; color: white; border: none; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: bold; }
         .btn-row-del:hover { background-color: #dc2626; }
@@ -66,6 +66,13 @@
             font-size: 0.8em; 
             color: #94a3b8; 
             font-style: italic;
+        }
+
+        /* 顏色選擇下拉框樣式 */
+        .stage-color-input option {
+            background-color: white;
+            color: #1e293b;
+            padding: 8px;
         }
     </style>
 </head>
@@ -200,14 +207,15 @@ function addDataRow(textValue = '', colorValue = '', shapeValue = '') {
     let colorOptionsHtml = "";
     academic20Colors.forEach(c => {
         const isSelected = c.hex.toLowerCase() === finalColor.toLowerCase() ? 'selected' : '';
-        colorOptionsHtml += `<option value="${c.hex}" ${isSelected}>■ ${c.name}</option>`;
+        // 改為用顏色方塊呈現而不是文字
+        colorOptionsHtml += `<option value="${c.hex}" ${isSelected} style="background-color: ${c.hex}; color: ${getContrastColor(c.hex)};">■ ${c.hex}</option>`;
     });
 
     const rowDiv = document.createElement('div');
     rowDiv.className = 'data-row';
     rowDiv.innerHTML = `
         <input type="text" class="stage-data-input" value="${textValue}" placeholder="例如：階段名稱, 50, 60, 70">
-        <select class="stage-color-input" title="選擇線條顏色">
+        <select class="stage-color-input" title="選擇線條顏色" style="background-color: ${finalColor}; color: ${getContrastColor(finalColor)}; font-weight: bold;">
             ${colorOptionsHtml}
         </select>
         <select class="stage-shape-input" title="選擇資料點形狀">
@@ -220,6 +228,24 @@ function addDataRow(textValue = '', colorValue = '', shapeValue = '') {
         <button type="button" class="btn-row-del" onclick="this.parentElement.remove()">刪除</button>
     `;
     container.appendChild(rowDiv);
+    
+    // 添加顏色變化事件監聽
+    const colorSelect = rowDiv.querySelector('.stage-color-input');
+    colorSelect.addEventListener('change', (e) => {
+        const newColor = e.target.value;
+        e.target.style.backgroundColor = newColor;
+        e.target.style.color = getContrastColor(newColor);
+    });
+}
+
+// 判斷前景色應為黑或白，根據背景色亮度
+function getContrastColor(hexColor) {
+    const hex = hexColor.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness > 128 ? '#000000' : '#FFFFFF';
 }
 
 function initRows() {
