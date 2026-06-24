@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>跨畫布階梯連線-多探測研究圖表產生器</title>
+    <title>多探測研究圖表產生器</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
@@ -54,8 +54,8 @@
 <body>
 
 <div class="container">
-    <h2>多探測/跨受試者多基線研究圖表分析儀 (全域階梯連線版)</h2>
-    <div class="subtitle">完美支援跨受試者橫向延長、縱向垂直向下延伸的學術階梯階段線</div>
+    <h2>多探測/跨受試者多基線研究圖表繪製器</h2>
+    <div class="subtitle">空值不連線設定：同一階段內若有減號 ( - )，該處折線將會自動斷開</div>
     
     <div class="input-area">
         <div class="setting-section">
@@ -120,7 +120,6 @@ let chartInstances = {};
 let globalChartsMap = {}; 
 let globalPhaseEdges = {}; 
 
-// 預設經典數據快取 (原本的 empty 換成更簡短精煉的 - )
 const defaultPresetData = {
     A: { line1: ["5, 5, 5", "7, 5, 5, 8, 11, 11, 11, 12, 12, 12, 13", "-, -, -, 14, -, -, 14"], line2: ["4, 4, 4", "4, 4, 5, 5, 13, 13, 15, 15, 15, 15", "-, -, -, 15, -, -, 15"] },
     B: { line1: ["6, -, -", "6, -, -, 6, 8, 7, 7, 6, 7, 9, 10, 13, 12, 16", "-, -, -, 15, -, -, 15"], line2: ["5, -, -", "5, -, -, 6, 7, 6, 5, 7, 12, 14, 16, 18", "-, -, -, 16, -, -, 16"] },
@@ -217,7 +216,6 @@ function buildSubjectsDataInputs() {
     });
 }
 
-// 核心修正：將「-」或「empty」統一解析為 null 空值
 function parseInputToArray(str) {
     if(!str.trim()) return [];
     return str.split(',').map(v => {
@@ -304,6 +302,7 @@ function drawAllCharts() {
                     const prevEmpty = (idx === 0 || phasePts[idx-1].y === null);
                     const nextEmpty = (idx === phasePts.length - 1 || phasePts[idx+1].y === null);
 
+                    // 如果前後都是空值，代表是獨立探測點，為它加上標 (1) (2)...
                     if (prevEmpty && nextEmpty) {
                         localAnnotations[`probe_${sub}_${cfg.classIdx}_${pt.x}`] = {
                             type: 'label', xValue: pt.x, yValue: pt.y, yAdjust: -15,
@@ -325,7 +324,7 @@ function drawAllCharts() {
                         return (value && value.y !== null) ? 5 : 0;
                     },
                     showLine: true,
-                    spanGaps: true,
+                    spanGaps: false, // 核心修改：關閉跨空值連線！遇到 null 會自動斷線
                     tension: 0
                 });
             });
