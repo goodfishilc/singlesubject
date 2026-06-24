@@ -21,35 +21,25 @@
         input, select { width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; box-sizing: border-box; background-color: white; }
         input:focus, select:focus { border-color: #3b82f6; outline: none; }
         
-        /* 期數設定管理區 */
         .phase-manage-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
-        .btn-phase-del { background-color: #ef4444; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .btn-phase-add { background-color: #475569; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; }
+        .btn-phase-del { background-color: #ef4444; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-phase-del:hover { background-color: #dc2626; }
+        .btn-phase-add { background-color: #475569; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; }
+        .btn-phase-add:hover { background-color: #334155; }
 
         .subject-block { border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; background: white; margin-bottom: 15px; }
         .subject-header { font-weight: bold; color: #1e293b; margin-bottom: 10px; border-bottom: 1px solid #f1f5f9; padding-bottom: 5px; }
         
-        /* 動態生成的數據行 */
         .data-config-container { display: flex; flex-direction: column; gap: 10px; }
         .condition-row { border-left: 4px solid #cbd5e1; padding-left: 15px; margin-bottom: 10px; }
         .condition-meta { display: flex; gap: 15px; align-items: center; margin-bottom: 8px; }
         .phase-inputs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
         
-        .color-picker-wrapper { position: relative; }
-        .color-block-btn { width: 45px; height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; box-sizing: border-box; }
-        .color-menu-panel { display: none; position: absolute; top: 42px; left: 0; background: white; border: 1px solid #cbd5e1; border-radius: 10px; padding: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); z-index: 100; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 130px; }
-        .color-menu-panel.active { display: grid; }
-        .color-option { width: 22px; height: 22px; border-radius: 4px; cursor: pointer; border: 1px solid rgba(0,0,0,0.1); }
-        .color-option:hover { transform: scale(1.15); }
-        
         .btn-group { display: flex; gap: 12px; margin-top: 20px; }
         button.main-btn { flex: 1; padding: 14px; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: 700; transition: all 0.2s; }
         .btn-update { background-color: #2563eb; }
         .btn-update:hover { background-color: #1d4ed8; }
-        .btn-download { background-color: #059669; }
-        .btn-download:hover { background-color: #047857; }
         
-        /* 垂直堆疊多圖表配置 */
         .multi-chart-container { display: flex; flex-direction: column; margin-top: 35px; background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 25px; gap: 0px; }
         .chart-row-wrapper { display: flex; align-items: center; position: relative; }
         .y-axis-left-title { writing-mode: vertical-lr; text-orientation: mixed; text-align: center; font-size: 15px; font-weight: bold; color: #334155; width: 40px; }
@@ -78,22 +68,22 @@
 
         <div class="setting-section">
             <div class="section-title">研究階段(期數)自定義管理</div>
-            <p style="font-size: 0.85em; color: #64748b; margin-top:-10px; margin-bottom:15px;">您可以在此任意新增、刪除或修改階段名稱。完成修改後請點擊下方「更新多基線圖表」。</p>
+            <p style="font-size: 0.85em; color: #64748b; margin-top:-10px; margin-bottom:15px;">您可以在此任意修改或新增階段。當您「修改名稱」或「新增階段」時，下方的個案輸入區會自動同步更新。</p>
             <div id="phasesContainer">
-                <div class="phase-manage-row" data-phase-id="0">
-                    <input type="text" class="phase-name-setup" value="基線期" placeholder="例如: 基線期">
+                <div class="phase-manage-row">
+                    <input type="text" class="phase-name-setup" value="基線期" oninput="buildSubjectsDataInputs()">
                     <button class="btn-phase-del" onclick="removePhaseRow(this)">刪除</button>
                 </div>
-                <div class="phase-manage-row" data-phase-id="1">
-                    <input type="text" class="phase-name-setup" value="處理期" placeholder="例如: 處理期">
+                <div class="phase-manage-row">
+                    <input type="text" class="phase-name-setup" value="處理期" oninput="buildSubjectsDataInputs()">
                     <button class="btn-phase-del" onclick="removePhaseRow(this)">刪除</button>
                 </div>
-                <div class="phase-manage-row" data-phase-id="2">
-                    <input type="text" class="phase-name-setup" value="追蹤期" placeholder="例如: 追蹤期">
+                <div class="phase-manage-row">
+                    <input type="text" class="phase-name-setup" value="追蹤期" oninput="buildSubjectsDataInputs()">
                     <button class="btn-phase-del" onclick="removePhaseRow(this)">刪除</button>
                 </div>
             </div>
-            <button class="btn-phase-add" onclick="addPhaseRow('', true)">+ 增加新研究階段 (如：再介入期/維持期)</button>
+            <button class="btn-phase-add" onclick="addPhaseRow()">+ 增加新研究階段 (如：再介入期/維持期)</button>
         </div>
 
         <div class="setting-section">
@@ -126,45 +116,43 @@
 if (window.ChartAnnotation) Chart.register(window.ChartAnnotation);
 
 let chartInstances = {};
-const academic12Colors = ["#475569", "#ea580c", "#1e3a8a", "#16a34a", "#991b1b", "#0284c7", "#7c3aed", "#0d9488", "#e11d48", "#0f172a", "#d97706", "#78350f"];
 
-// 預設經典數據快取，供動態新增期數時填入預設值
+// 預設經典數據快取
 const defaultPresetData = {
     A: { line1: ["5, 5, 5", "7, 5, 5, 8, 11, 11, 11, 12, 12, 12, 13", "empty, empty, empty, 14, empty, empty, 14"], line2: ["4, 4, 4", "4, 4, 5, 5, 13, 13, 15, 15, 15, 15", "empty, empty, empty, 15, empty, empty, 15"] },
     B: { line1: ["6, empty, empty", "6, empty, empty, 6, 8, 7, 7, 6, 7, 9, 10, 13, 12, 16", "empty, empty, empty, 15, empty, empty, 15"], line2: ["5, empty, empty", "5, empty, empty, 6, 7, 6, 5, 7, 12, 14, 16, 18", "empty, empty, empty, 16, empty, empty, 16"] },
     C: { line1: ["4, empty, empty, empty, empty, 5, 5, empty, empty, empty, empty", "6, 6, 7, 15, 14, 14, 14, 15, 13", "empty, empty, empty, 13, empty, empty, 13"], line2: ["5, empty, empty, empty, empty, 4, 4, empty, empty, empty, empty", "5, 7, 5, 8, 13, 11, 14, 15, 14", "empty, empty, empty, 14, empty, empty, 14"] }
 };
 
-function addPhaseRow(name = '', rebuildInput = false) {
+// 正確修正：新增期數時，設定預設名稱並強制觸發欄位重組
+function addPhaseRow() {
     const container = document.getElementById('phasesContainer');
-    const id = container.children.length;
     const row = document.createElement('div');
     row.className = 'phase-manage-row';
-    row.setAttribute('data-phase-id', id);
     row.innerHTML = `
-        <input type="text" class="phase-name-setup" value="${name}" placeholder="新研究階段名稱">
+        <input type="text" class="phase-name-setup" value="新階段" oninput="buildSubjectsDataInputs()">
         <button class="btn-phase-del" onclick="removePhaseRow(this)">刪除</button>
     `;
     container.appendChild(row);
-    if(rebuildInput) buildSubjectsDataInputs();
+    buildSubjectsDataInputs(); // 同步更新下方輸入欄位
 }
 
 function removePhaseRow(btn) {
     btn.parentElement.remove();
-    buildSubjectsDataInputs();
+    buildSubjectsDataInputs(); // 同步更新下方輸入欄位
 }
 
-// 根據定義的期數，動態組裝前端輸入欄位
+// 動態組裝與保留現有數值邏輯
 function buildSubjectsDataInputs() {
     const phases = [];
     document.querySelectorAll('.phase-name-setup').forEach(input => {
-        if(input.value.trim()) phases.push(input.value.trim());
+        phases.push(input.value.trim() || '未命名階段');
     });
 
     const subjects = ['A', 'B', 'C'];
     const container = document.getElementById('subjectsContainer');
     
-    // 記錄目前的輸入數值避免被清空
+    // 暫存當前使用者已經輸入在格子裡的數值，避免打字或新增時被清空
     const currentValues = {};
     subjects.forEach(sub => {
         currentValues[sub] = { line1: [], line2: [] };
@@ -186,7 +174,7 @@ function buildSubjectsDataInputs() {
         let line2GridHTML = '';
         
         phases.forEach((pName, pIdx) => {
-            // 讀取舊值或帶入經典預設值，若無則填 empty
+            // 讀取暫存值 -> 讀取經典預設值 -> 若都沒有則給 empty
             let val1 = currentValues[sub].line1[pIdx] !== undefined ? currentValues[sub].line1[pIdx] : (defaultPresetData[sub].line1[pIdx] || 'empty');
             let val2 = currentValues[sub].line2[pIdx] !== undefined ? currentValues[sub].line2[pIdx] : (defaultPresetData[sub].line2[pIdx] || 'empty');
             
@@ -216,7 +204,7 @@ function buildSubjectsDataInputs() {
         container.appendChild(block);
     });
 
-    // 重新建構下方的畫布列
+    // 重新配置底部的 Canvas 畫布
     const canvasContainer = document.getElementById('canvasRowsContainer');
     canvasContainer.innerHTML = '';
     subjects.forEach((sub, idx) => {
@@ -249,31 +237,26 @@ function drawAllCharts() {
     const yMax = parseFloat(document.getElementById('yMaxVal').value) || 20;
     const yStep = parseFloat(document.getElementById('yStepVal').value) || 5;
 
-    // 獲取目前最新定義的期數名稱
     const phases = [];
     document.querySelectorAll('.phase-name-setup').forEach(input => {
         if(input.value.trim()) phases.push(input.value.trim());
     });
 
     const subjects = ['A', 'B', 'C'];
-    
-    // 全域算統計各期的總評量次數最大上限，用來對齊橫軸
     let globalMaxX = 10; 
 
-    // 1. 預析各受試者在各期的點數長度，用來計算階梯切換點
     let subjectPhaseLengths = { A: [], B: [], C: [] };
     subjects.forEach(sub => {
         const block = document.querySelector(`.subject-block[data-subject="${sub}"]`);
         const l1Inputs = block.querySelectorAll('.line1-phase-val');
         phases.forEach((_, pIdx) => {
-            const arr1 = parseInputToArray(l1Inputs[pIdx].value);
+            const arr1 = parseInputToArray(l1Inputs[pIdx] ? l1Inputs[pIdx].value : 'empty');
             subjectPhaseLengths[sub].push(arr1.length);
         });
         const totalLen = subjectPhaseLengths[sub].reduce((a, b) => a + b, 0);
         if(totalLen > globalMaxX) globalMaxX = totalLen;
     });
 
-    // 2. 開始個別繪製畫布
     subjects.forEach((sub, subIdx) => {
         const block = document.querySelector(`.subject-block[data-subject="${sub}"]`);
         const isLastSubject = (subIdx === subjects.length - 1);
@@ -286,14 +269,12 @@ function drawAllCharts() {
         let localAnnotations = {};
         let combinedDatasets = [];
 
-        // 整理雙線資料
         let linesConfig = [
             { inputs: l1Inputs, color: '#475569', shape: shape1, name: '教室', classIdx: 'l1' },
             { inputs: l2Inputs, color: '#ea580c', shape: shape2, name: '街道', classIdx: 'l2' }
         ];
 
-        // 計算每一期在 X 軸的累積時間區間座標
-        let phaseXEdges = [0.5]; // 第一點起點 1 號
+        let phaseXEdges = [0.5]; 
         let currentXPointer = 0.5;
         subjectPhaseLengths[sub].forEach(len => {
             currentXPointer += len;
@@ -305,6 +286,7 @@ function drawAllCharts() {
             let xTracker = 1;
             
             phases.forEach((_, pIdx) => {
+                if(!cfg.inputs[pIdx]) return;
                 const vals = parseInputToArray(cfg.inputs[pIdx].value);
                 vals.forEach(v => {
                     allPts.push({ x: xTracker, y: v });
@@ -322,7 +304,6 @@ function drawAllCharts() {
 
                 if (prevEmpty && nextEmpty) {
                     probePts.push(pt);
-                    // 智慧判定這個探測點落在哪個研究期數，自動上標標記
                     let matchedPhaseIdx = 1;
                     for(let e=0; e<phaseXEdges.length-1; e++) {
                         if(pt.x >= phaseXEdges[e] && pt.x <= phaseXEdges[e+1]) {
@@ -331,13 +312,8 @@ function drawAllCharts() {
                         }
                     }
                     localAnnotations[`probe_${cfg.classIdx}_${pt.x}`] = {
-                        type: 'label',
-                        xValue: pt.x,
-                        yValue: pt.y,
-                        yAdjust: -15,
-                        content: `(${matchedPhaseIdx})`,
-                        color: '#1e293b',
-                        font: { size: 10, weight: 'bold' }
+                        type: 'label', xValue: pt.x, yValue: pt.y, yAdjust: -15,
+                        content: `(${matchedPhaseIdx})`, color: '#1e293b', font: { size: 10, weight: 'bold' }
                     };
                 } else {
                     continuousPts.push(pt);
@@ -345,43 +321,27 @@ function drawAllCharts() {
             });
 
             combinedDatasets.push({
-                label: cfg.name,
-                data: continuousPts,
-                borderColor: cfg.color,
+                label: cfg.name, data: continuousPts, borderColor: cfg.color,
                 backgroundColor: cfg.shape === 'circle' ? '#ffffff' : cfg.color,
-                borderWidth: 2,
-                pointStyle: 'circle',
-                pointRadius: 5,
-                showLine: true,
-                spanGaps: false,
-                tension: 0
+                borderWidth: 2, pointStyle: 'circle', pointRadius: 5, showLine: true, spanGaps: false, tension: 0
             });
 
             combinedDatasets.push({
-                label: cfg.name + ' (探測)',
-                data: probePts,
-                borderColor: cfg.color,
+                label: cfg.name + ' (探測)', data: probePts, borderColor: cfg.color,
                 backgroundColor: cfg.shape === 'circle' ? '#ffffff' : cfg.color,
-                borderWidth: 2,
-                pointStyle: 'circle',
-                pointRadius: 5,
-                showLine: false
+                borderWidth: 2, pointStyle: 'circle', pointRadius: 5, showLine: false
             });
         });
 
-        // 3. 動態階梯分界垂直實線繪製
+        // 繪製垂直實線
         for(let p = 0; p < phaseXEdges.length - 2; p++) {
             let boundaryX = phaseXEdges[p+1];
             localAnnotations[`boundary_line_${p}`] = {
-                type: 'line',
-                xMin: boundaryX,
-                xMax: boundaryX,
-                borderColor: '#000000',
-                borderWidth: 1.5
+                type: 'line', xMin: boundaryX, xMax: boundaryX, borderColor: '#000000', borderWidth: 1.5
             };
         }
 
-        // 4. 自動尋找名稱含有「追蹤」的期數索引，在其前方建立雙斜線斷軸 (//)
+        // 自動打斷軸斜線 (//)
         let followUpIdx = phases.findIndex(name => name.includes('追蹤'));
         if (followUpIdx !== -1 && followUpIdx > 0) {
             let breakX = phaseXEdges[followUpIdx];
@@ -389,17 +349,12 @@ function drawAllCharts() {
             localAnnotations['axis_break_2'] = { type: 'label', xValue: breakX + 0.2, yValue: 0, yAdjust: 10, content: '/', color: '#94a3b8', font: { size: 16 } };
         }
 
-        // 5. 頂部期數名稱文字 (僅在第一個畫布呈現)
+        // 頂部期數名稱文字
         if (subIdx === 0) {
             phases.forEach((pName, pIdx) => {
                 let midX = (phaseXEdges[pIdx] + phaseXEdges[pIdx+1]) / 2;
                 localAnnotations[`title_text_${pIdx}`] = {
-                    type: 'label',
-                    xValue: midX,
-                    yValue: yMax,
-                    yAdjust: -20,
-                    content: pName,
-                    font: { size: 13, weight: 'bold' }
+                    type: 'label', xValue: midX, yValue: yMax, yAdjust: -20, content: pName, font: { size: 13, weight: 'bold' }
                 };
             });
         }
@@ -416,35 +371,17 @@ function drawAllCharts() {
                 layout: { padding: { top: subIdx === 0 ? 25 : 10, bottom: 5, left: 10, right: 20 } },
                 scales: {
                     x: {
-                        type: 'linear',
-                        min: 0,
-                        max: globalMaxX + 1,
-                        ticks: {
-                            stepSize: 3,
-                            display: isLastSubject,
-                            color: '#000000',
-                            font: { weight: 'bold' }
-                        },
-                        grid: { display: false },
-                        border: { display: true, color: '#000000', width: 1.5 }
+                        type: 'linear', min: 0, max: globalMaxX + 1,
+                        ticks: { stepSize: 3, display: isLastSubject, color: '#000000', font: { weight: 'bold' } },
+                        grid: { display: false }, border: { display: true, color: '#000000', width: 1.5 }
                     },
                     y: {
-                        type: 'linear',
-                        min: 0,
-                        max: yMax,
-                        ticks: {
-                            stepSize: yStep,
-                            color: '#000000',
-                            font: { weight: 'bold' }
-                        },
-                        grid: { display: false },
-                        border: { display: true, color: '#000000', width: 1.5 }
+                        type: 'linear', min: 0, max: yMax,
+                        ticks: { stepSize: yStep, color: '#000000', font: { weight: 'bold' } },
+                        grid: { display: false }, border: { display: true, color: '#000000', width: 1.5 }
                     }
                 },
-                plugins: {
-                    legend: { display: false },
-                    annotation: { annotations: localAnnotations }
-                }
+                plugins: { legend: { display: false }, annotation: { annotations: localAnnotations } }
             }
         });
     });
