@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>可調期數-同階段連線-多探測研究圖表產生器</title>
+    <title>跨畫布階梯連線-多探測研究圖表產生器</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
@@ -40,11 +40,15 @@
         .btn-update { background-color: #2563eb; }
         .btn-update:hover { background-color: #1d4ed8; }
         
-        .multi-chart-container { display: flex; flex-direction: column; margin-top: 35px; background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 25px; gap: 0px; }
-        .chart-row-wrapper { display: flex; align-items: center; position: relative; }
+        /* 圖表區垂直無縫堆疊 */
+        .multi-chart-container { display: flex; flex-direction: column; margin-top: 35px; background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 25px; position: relative; }
+        .chart-row-wrapper { display: flex; align-items: center; position: relative; z-index: 2; }
         .y-axis-left-title { writing-mode: vertical-lr; text-orientation: mixed; text-align: center; font-size: 15px; font-weight: bold; color: #334155; width: 40px; }
         .subject-label-side { width: 70px; font-weight: bold; font-size: 14px; text-align: center; color: #475569; }
-        .chart-box { flex: 1; height: 240px; position: relative; }
+        .chart-box { flex: 1; height: 220px; position: relative; }
+        
+        /* 跨越圖表的頂層 SVG 階梯連線畫布 */
+        #stepLineOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
         
         .copyright-footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: right; font-size: 0.8em; color: #94a3b8; font-style: italic; }
     </style>
@@ -52,8 +56,8 @@
 <body>
 
 <div class="container">
-    <h2>多探測/跨受試者多基線研究圖表分析儀 (同階段連線加強版)</h2>
-    <div class="subtitle">同階段內折線自動跨空值連接，不同階段間維持階梯線完美斷線</div>
+    <h2>多探測/跨受試者多基線研究圖表分析儀 (全域階梯連線版)</h2>
+    <div class="subtitle">完美支援跨受試者橫向延長、縱向垂直向下延伸的學術階梯階段線</div>
     
     <div class="input-area">
         <div class="setting-section">
@@ -91,28 +95,33 @@
         </div>
 
         <div class="btn-group">
-            <button class="main-btn btn-update" onclick="drawAllCharts()">更新多基線圖表</button>
+            <button class="main-btn btn-update" onclick="drawAllCharts()">更新多基線圖表與全域階梯線</button>
         </div>
     </div>
     
     <div class="multi-chart-container" id="visualOutputArea">
-        <div style="display: flex; justify-content: center; gap: 30px; font-size: 0.9em; font-weight: bold; margin-bottom: 10px;">
+        <svg id="stepLineOverlay"></svg>
+
+        <div style="display: flex; justify-content: center; gap: 30px; font-size: 0.9em; font-weight: bold; margin-bottom: 10px; position: relative; z-index: 5;">
             <span style="color: #475569;">● 在教室 (訓練情境) 中的表現</span>
             <span style="color: #ea580c;">○ 在街道 (非訓練情境) 上的表現</span>
         </div>
         
         <div id="canvasRowsContainer"></div>
         
-        <div style="text-align: center; font-weight: bold; font-size: 14px; margin-top: 10px; color: #334155;" id="sharedXTitle">評量次數</div>
+        <div style="text-align: center; font-weight: bold; font-size: 14px; margin-top: 10px; color: #334155; position: relative; z-index: 5;" id="sharedXTitle">評量次數</div>
     </div>
     
-    <div class="copyright-footer">© 俞昭銘@GEMINI 學術圖表優化版</div>
+    <div class="copyright-footer">© 俞昭銘@GEMINI 階梯連線規格版</div>
 </div>
 
 <script>
 if (window.ChartAnnotation) Chart.register(window.ChartAnnotation);
 
 let chartInstances = {};
+// 用來記錄各受試者圖表實體，方便後續動態提取像素 X 座標
+let globalChartsMap = {}; 
+let globalPhaseEdges = {}; 
 
 const defaultPresetData = {
     A: { line1: ["5, 5, 5", "7, 5, 5, 8, 11, 11, 11, 12, 12, 12, 13", "empty, empty, empty, 14, empty, empty, 14"], line2: ["4, 4, 4", "4, 4, 5, 5, 13, 13, 15, 15, 15, 15", "empty, empty, empty, 15, empty, empty, 15"] },
@@ -248,6 +257,10 @@ function drawAllCharts() {
         if(totalLen > globalMaxX) globalMaxX = totalLen;
     });
 
+    // 清空舊實體記錄
+    globalChartsMap = {};
+    globalPhaseEdges = {};
+
     subjects.forEach((sub, subIdx) => {
         const block = document.querySelector(`.subject-block[data-subject="${sub}"]`);
         const isLastSubject = (subIdx === subjects.length - 1);
@@ -271,16 +284,15 @@ function drawAllCharts() {
             currentXPointer += len;
             phaseXEdges.push(currentXPointer);
         });
+        globalPhaseEdges[sub] = phaseXEdges; // 快取起來供階梯線計算
 
         linesConfig.forEach(cfg => {
-            // 重大變革：改為「每一階段獨立成一個折線資料集」，確保階段間絕對不連線，但階段內部完美跨空值連線
             phases.forEach((_, pIdx) => {
                 if(!cfg.inputs[pIdx]) return;
                 const vals = parseInputToArray(cfg.inputs[pIdx].value);
                 
                 let phasePts = [];
                 let startX = 1;
-                // 計算當前階段在全體 X 軸中的正確起點坐標
                 for(let prev = 0; prev < pIdx; prev++) {
                     startX += subjectPhaseLengths[sub][prev];
                 }
@@ -289,7 +301,6 @@ function drawAllCharts() {
                     phasePts.push({ x: startX + vIdx, y: v });
                 });
 
-                // 過濾出這個階段內的孤立探測點，以便生成上標 (1) (2)
                 phasePts.forEach((pt, idx) => {
                     if (pt.y === null) return;
                     const prevEmpty = (idx === 0 || phasePts[idx-1].y === null);
@@ -303,34 +314,24 @@ function drawAllCharts() {
                     }
                 });
 
-                // 將這個階段的折線塞入圖表，啟動 spanGaps: true
                 combinedDatasets.push({
                     label: `${cfg.name}-P${pIdx}`,
-                    data: phasePts.filter(pt => pt.y !== null || pt.y === null), // 保留 null 節點
+                    data: phasePts,
                     borderColor: cfg.color,
                     backgroundColor: cfg.shape === 'circle' ? '#ffffff' : cfg.color,
                     borderWidth: 2,
                     pointStyle: 'circle',
                     pointRadius: function(context) {
-                        // 隱藏 null 節點的圓點
                         const index = context.dataIndex;
                         const value = context.dataset.data[index];
                         return (value && value.y !== null) ? 5 : 0;
                     },
                     showLine: true,
-                    spanGaps: true, // 核心修正：允許跨空值連線！
+                    spanGaps: true,
                     tension: 0
                 });
             });
         });
-
-        // 繪製垂直階段分界線
-        for(let p = 0; p < phaseXEdges.length - 2; p++) {
-            let boundaryX = phaseXEdges[p+1];
-            localAnnotations[`boundary_line_${p}`] = {
-                type: 'line', xMin: boundaryX, xMax: boundaryX, borderColor: '#000000', borderWidth: 1.5
-            };
-        }
 
         // 追蹤期斷軸 (//) 提示
         let followUpIdx = phases.findIndex(name => name.includes('追蹤'));
@@ -359,6 +360,14 @@ function drawAllCharts() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: {
+                    onComplete: function() {
+                        // 當所有圖表都渲染完畢，觸發跨畫布 SVG 階梯連線繪製
+                        if(Object.keys(globalChartsMap).length === subjects.length) {
+                            drawGlobalStepLines(phases.length);
+                        }
+                    }
+                },
                 layout: { padding: { top: subIdx === 0 ? 25 : 10, bottom: 5, left: 10, right: 20 } },
                 scales: {
                     x: {
@@ -375,8 +384,83 @@ function drawAllCharts() {
                 plugins: { legend: { display: false }, annotation: { annotations: localAnnotations } }
             }
         });
+
+        globalChartsMap[sub] = chartInstances[sub];
     });
 }
+
+// 核心升級：精準提取跨 Canvas 的坐標，利用外層 SVG 繪製無縫階梯串聯線
+function drawGlobalStepLines(totalPhases) {
+    const svg = document.getElementById('stepLineOverlay');
+    const containerRect = document.getElementById('visualOutputArea').getBoundingClientRect();
+    svg.innerHTML = ''; // 清空舊線
+
+    const subjects = ['A', 'B', 'C'];
+    
+    // 對於每一條階段邊界線 (例如第1階段到第2階段之間)
+    for(let p = 0; p < totalPhases - 1; p++) {
+        let pointsPath = [];
+
+        for(let s = 0; s < subjects.length; s++) {
+            const sub = subjects[s];
+            const chart = globalChartsMap[sub];
+            const edgeXVal = globalPhaseEdges[sub][p+1]; // 當前個案在該階段的 X 軸邊界值
+
+            // 取得該個案 Canvas 畫布的精準絕對網頁坐標
+            const canvasEl = document.getElementById(`chart_${sub}`);
+            const canvasRect = canvasEl.getBoundingClientRect();
+
+            // 透過 Chart.js 內建 API 轉換「資料 X 值」為「畫布內的像素 X 座標」
+            const pixelX = chart.scales.x.getPixelForValue(edgeXVal);
+            const absoluteX = canvasRect.left + pixelX - containerRect.left;
+
+            // 取得該圖表的繪圖區頂部與底部 Y 座標
+            const absoluteYTop = canvasRect.top + chart.chartArea.top - containerRect.top;
+            const absoluteYBottom = canvasRect.top + chart.chartArea.bottom - containerRect.top;
+
+            if (s === 0) {
+                // 個案 A：垂直穿過個案 A 的圖表
+                pointsPath.push({ x: absoluteX, y: absoluteYTop });
+                pointsPath.push({ x: absoluteX, y: absoluteYBottom });
+            } else if (s === 1) {
+                // 個案 A 橫向連到個案 B 的上方，再垂直向下穿過個案 B
+                const prevX = pointsPath[pointsPath.length - 1].x;
+                pointsPath.push({ x: prevX, y: absoluteYTop }); // 在個案 B 上方轉折
+                pointsPath.push({ x: absoluteX, y: absoluteYTop }); // 橫線連接到個案 B 的 X 點
+                pointsPath.push({ x: absoluteX, y: absoluteYBottom }); // 垂直穿過個案 B
+            } else if (s === 2) {
+                // 個案 B 橫向連到個案 C 的上方，再垂直向下穿過個案 C
+                const prevX = pointsPath[pointsPath.length - 1].x;
+                pointsPath.push({ x: prevX, y: absoluteYTop }); // 在個案 C 上方轉折
+                pointsPath.push({ x: absoluteX, y: absoluteYTop }); // 橫線連接到個案 C 的 X 點
+                pointsPath.push({ x: absoluteX, y: absoluteYBottom }); // 垂直穿過個案 C
+            }
+        }
+
+        // 將座標軌跡轉換為 SVG 的 Path 語法
+        if(pointsPath.length > 0) {
+            let dStr = `M ${pointsPath[0].x} ${pointsPath[0].y} `;
+            for(let i = 1; i < pointsPath.length; i++) {
+                dStr += `L ${pointsPath[i].x} ${pointsPath[i].y} `;
+            }
+
+            const pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            pathEl.setAttribute("d", dStr);
+            pathEl.setAttribute("stroke", "#000000");
+            pathEl.setAttribute("stroke-width", "1.5");
+            pathEl.setAttribute("fill", "none");
+            // 使用虛線(或實線)來清晰呈現階段線，這裡依據圖片規格使用實線
+            pathEl.setAttribute("stroke-dasharray", "none"); 
+            svg.appendChild(pathEl);
+        }
+    }
+}
+
+// 監聽視窗縮放，確保階梯線與圖表同步縮放
+window.addEventListener('resize', () => {
+    const phases = document.querySelectorAll('.phase-name-setup').length;
+    if(phases > 0) drawGlobalStepLines(phases);
+});
 
 window.onload = () => {
     buildSubjectsDataInputs();
