@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>跨受試者多探測設計研究圖表產生器 (期刊發表級)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <style>
+        body { font-family: "Microsoft JhengHei", "Segoe UI", sans-serif; background-color: #f1f5f9; padding: 30px; margin: 0; color: #1e293b; }
+        .container { max-width: 1500px; margin: auto; background: white; padding: 35px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+        h2 { text-align: center; color: #0f172a; margin-bottom: 5px; font-weight: 800; }
+        .subtitle { text-align: center; color: #64748b; font-size: 0.95em; margin-bottom: 30px; }
+        
+        .setting-section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .section-title { font-size: 0.9em; font-weight: 700; color: #334155; margin-top: 0; margin-bottom: 15px; border-left: 5px solid #3b82f6; padding-left: 10px; text-transform: uppercase; }
+        
+        .grid-layout { display: flex; flex-wrap: wrap; gap: 20px; }
+        .grid-item { flex: 1; min-width: 200px; }
+        
+        label { display: block; font-size: 0.85em; color: #64748b; margin-bottom: 6px; font-weight: 600; }
+        input, select { width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; box-sizing: border-box; background-color: white; }
+        input:focus, select:focus { border-color: #3b82f6; outline: none; }
+        
+        .subject-block { border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; background: white; margin-bottom: 15px; }
+        .subject-header { font-weight: bold; color: #1e293b; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .data-row { display: grid; grid-template-columns: 120px 1fr 1fr 50px 110px; gap: 10px; align-items: center; margin-bottom: 10px; }
+        .data-row.header-row { font-size: 0.8em; color: #64748b; font-weight: bold; margin-bottom: 5px; }
+        
+        .color-picker-wrapper { position: relative; }
+        .color-block-btn { width: 45px; height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; box-sizing: border-box; }
+        .color-menu-panel { display: none; position: absolute; top: 42px; left: 0; background: white; border: 1px solid #cbd5e1; border-radius: 10px; padding: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); z-index: 100; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 130px; }
+        .color-menu-panel.active { display: grid; }
+        .color-option { width: 22px; height: 22px; border-radius: 4px; cursor: pointer; border: 1px solid rgba(0,0,0,0.1); }
+        .color-option:hover { transform: scale(1.15); }
+        
+        .btn-group { display: flex; gap: 12px; margin-top: 20px; }
+        button.main-btn { flex: 1; padding: 14px; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: 700; transition: all 0.2s; }
+        .btn-update { background-color: #2563eb; }
+        .btn-update:hover { background-color: #1d4ed8; }
+        .btn-download { background-color: #059669; }
+        .btn-download:hover { background-color: #047857; }
+        
+        /* 垂直堆疊多圖表配置 */
+        .multi-chart-container { display: flex; flex-direction: column; margin-top: 35px; background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 25px; gap: 0px; }
+        .chart-row-wrapper { display: flex; align-items: center; position: relative; }
+        .y-axis-left-title { writing-mode: vertical-lr; text-orientation: mixed; text-align: center; font-size: 15px; font-weight: bold; color: #334155; width: 40px; }
+        .subject-label-side { width: 70px; font-weight: bold; font-size: 14px; text-align: center; color: #475569; }
+        .chart-box { flex: 1; height: 220px; position: relative; }
+        
+        .copyright-footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: right; font-size: 0.8em; color: #94a3b8; font-style: italic; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>多探測/跨受試者多基線研究圖表分析儀</h2>
+    <div class="subtitle">符合期刊出版規範，支援不連續探測點自動標記與多受試者垂直並列軸</div>
+    
+    <div class="input-area">
+        <div class="setting-section">
+            <div class="section-title">全域座標與標題設定</div>
+            <div class="grid-layout">
+                <div class="grid-item"><label for="yAxisTitle">縱軸名稱 (Y軸)</label><input type="text" id="yAxisTitle" value="過馬路正確反應的次數"></div>
+                <div class="grid-item"><label for="xAxisTitle">橫軸名稱 (X軸)</label><input type="text" id="xAxisTitle" value="評量次數"></div>
+                <div class="grid-item"><label for="yMaxVal">Y軸最大值</label><input type="number" id="yMaxVal" value="20"></div>
+                <div class="grid-item"><label for="yStepVal">刻度間隔</label><input type="number" id="yStepVal" value="5"></div>
+                <div class="grid-item"><label for="xMaxVal">總評量次數上限</label><input type="number" id="xMaxVal" value="33"></div>
+            </div>
+        </div>
+
+        <div class="setting-section">
+            <div class="section-title">各受試者數據配置（若無資料填 empty 即可自動斷線形成探測點）</div>
+            
+            <div id="subjectsContainer">
+                <div class="subject-block" data-subject="A">
+                    <div class="subject-header"><span>個案 A 設定</span></div>
+                    <div class="data-row header-row"><div>情境名稱</div><div>基線期與處理期數據 (逗號隔開)</div><div>追蹤期數據 (前面留空代表斷軸)</div><div>顏色</div><div>標記形狀</div></div>
+                    <div class="data-row line1">
+                        <input type="text" class="cond-name" value="教室(訓練)">
+                        <input type="text" class="main-data" value="5, 5, 5, 7, 5, 5, 8, 11, 11, 11, 12, 12, 12, 13">
+                        <input type="text" class="follow-data" value="empty, empty, empty, empty, empty, empty, empty, empty, empty, 14, empty, empty, 14, empty, empty, 14">
+                        <div class="color-picker-wrapper"><div class="color-block-btn stage-color" data-color="#475569" style="background-color: #475569;" onclick="toggleColorMenu(event, this)"></div><div class="color-menu-panel"></div></div>
+                        <select class="stage-shape"><option value="circle">○ 空心圓</option><option value="filledCircle" selected>● 實心圓</option></select>
+                    </div>
+                    <div class="data-row line2">
+                        <input type="text" class="cond-name" value="街道(非訓練)">
+                        <input type="text" class="main-data" value="4, 4, 4, 4, 4, 5, 5, 13, 13, 15, 15, 15, 15">
+                        <input type="text" class="follow-data" value="empty, empty, empty, empty, empty, empty, empty, empty, empty, 15, empty, empty, 15, empty, empty, 15">
+                        <div class="color-picker-wrapper"><div class="color-block-btn stage-color" data-color="#ea580c" style="background-color: #ea580c;" onclick="toggleColorMenu(event, this)"></div><div class="color-menu-panel"></div></div>
+                        <select class="stage-shape"><option value="circle" selected>○ 空心圓</option><option value="filledCircle">● 實心圓</option></select>
+                    </div>
+                </div>
+
+                <div class="subject-block" data-subject="B">
+                    <div class="subject-header"><span>個案 B 設定</span></div>
+                    <div class="data-row line1">
+                        <input type="text" class="cond-name" value="教室(訓練)">
+                        <input type="text" class="main-data" value="6, empty, empty, 6, empty, empty, 6, 8, 7, 7, 6, 7, 9, 10, 13, 12, 16">
+                        <input type="text" class="follow-data" value="empty, empty, empty, empty, empty, empty, empty, empty, empty, 15, empty, empty, 15, empty, empty, 15">
+                        <div class="color-picker-wrapper"><div class="color-block-btn stage-color" data-color="#475569" style="background-color: #475569;" onclick="toggleColorMenu(event, this)"></div><div class="color-menu-panel"></div></div>
+                        <select class="stage-shape"><option value="filledCircle" selected>● 實心圓</option></select>
+                    </div>
+                    <div class="data-row line2">
+                        <input type="text" class="cond-name" value="街道(非訓練)">
+                        <input type="text" class="main-data" value="5, empty, empty, 5, empty, empty, 6, 7, 6, 5, 7, 12, 14, 16, 18">
+                        <input type="text" class="follow-data" value="empty, empty, empty, empty, empty, empty, empty, empty, empty, 16, empty, empty, 16, empty, empty, 16">
+                        <div class="color-picker-wrapper"><div class="color-block-btn stage-color" data-color="#ea580c" style="background-color: #ea580c;" onclick="toggleColorMenu(event, this)"></div><div class="color-menu-panel"></div></div>
+                        <select class="stage-shape"><option value="circle" selected>○ 空心圓</option></select>
+                    </div>
+                </div>
+
+                <div class="subject-block" data-subject="C">
+                    <div class="subject-header"><span>個案 C 設定</span></div>
+                    <div class="data-row line1">
+                        <input type="text" class="cond-name" value="教室(訓練)">
+                        <input type="text" class="main-data" value="4, empty, empty, empty, empty, 5, 5, empty, empty, empty, empty, 6, 6, 7, 15, 14, 14, 14, 15, 13">
+                        <input type="text" class="follow-data" value="empty, empty, empty, empty, empty, empty, empty, empty, empty, 13, empty, empty, 13, empty, empty, 13">
+                        <div class="color-picker-wrapper"><div class="color-block-btn stage-color" data-color="#475569" style="background-color: #475569;" onclick="toggleColorMenu(event, this)"></div><div class="color-menu-panel"></div></div>
+                        <select class="stage-shape"><option value="filledCircle" selected>● 實心圓</option></select>
+                    </div>
+                    <div class="data-row line2">
+                        <input type="text" class="cond-name" value="街道(非訓練)">
+                        <input type="text" class="main-data" value="5, empty, empty, empty, empty, 4, 4, empty, empty, empty, empty, 5, 7, 5, 8, 13, 11, 14, 15, 14">
+                        <input type="text" class="follow-data" value="empty, empty, empty, empty, empty, empty, empty, empty, empty, 14, empty, empty, 14, empty, empty, 14">
+                        <div class="color-picker-wrapper"><div class="color-block-btn stage-color" data-color="#ea580c" style="background-color: #ea580c;" onclick="toggleColorMenu(event, this)"></div><div class="color-menu-panel"></div></div>
+                        <select class="stage-shape"><option value="circle" selected>○ 空心圓</option></select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="main-btn btn-update" onclick="drawAllCharts()">更新多基線圖表</button>
+            <button class="main-btn btn-download" onclick="exportCombinedLayout()">匯出完整期刊圖表 (.png)</button>
+        </div>
+    </div>
+    
+    <div class="multi-chart-container" id="visualOutputArea">
+        <div style="display: flex; justify-content: center; gap: 30px; font-size: 0.9em; font-weight: bold; margin-bottom: 10px;">
+            <span style="color: #475569;">● 在教室 (訓練情境) 中的表現</span>
+            <span style="color: #ea580c;">○ 在街道 (非訓練情境) 上的表現</span>
+        </div>
+        
+        <div class="chart-row-wrapper">
+            <div class="y-axis-left-title" id="sharedYTitle">過馬路正確反應的次數</div>
+            <div class="subject-label-side">個案 A</div>
+            <div class="chart-box"><canvas id="chart_A"></canvas></div>
+        </div>
+        <div class="chart-row-wrapper">
+            <div class="y-axis-left-title" style="visibility: hidden;">隱藏對齊空間</div>
+            <div class="subject-label-side">個案 B</div>
+            <div class="chart-box"><canvas id="chart_B"></canvas></div>
+        </div>
+        <div class="chart-row-wrapper">
+            <div class="y-axis-left-title" style="visibility: hidden;">隱藏對齊空間</div>
+            <div class="subject-label-side">個案 C</div>
+            <div class="chart-box"><canvas id="chart_C"></canvas></div>
+        </div>
+        
+        <div style="text-align: center; font-weight: bold; font-size: 14px; margin-top: 10px; color: #334155;" id="sharedXTitle">評量次數</div>
+    </div>
+    
+    <div class="copyright-footer">© 俞昭銘@GEMINI 多探測研究加強版</div>
+</div>
+
+<script>
+if (window.ChartAnnotation) Chart.register(window.ChartAnnotation);
+
+let chartInstances = {};
+const academic12Colors = ["#475569", "#ea580c", "#1e3a8a", "#16a34a", "#991b1b", "#0284c7", "#7c3aed", "#0d9488", "#e11d48", "#0f172a", "#d97706", "#78350f"];
+
+function setupColorPanels() {
+    document.querySelectorAll('.color-menu-panel').forEach(panel => {
+        panel.innerHTML = '';
+        academic12Colors.forEach(color => {
+            const opt = document.createElement('div');
+            opt.className = 'color-option';
+            opt.style.backgroundColor = color;
+            opt.onclick = (e) => {
+                e.stopPropagation();
+                const btn = panel.previousElementSibling;
+                btn.setAttribute('data-color', color);
+                btn.style.backgroundColor = color;
+                panel.classList.remove('active');
+                drawAllCharts();
+            };
+            panel.appendChild(opt);
+        });
+    });
+}
+
+function toggleColorMenu(e, btn) {
+    e.stopPropagation();
+    document.querySelectorAll('.color-menu-panel').forEach(p => {
+        if (p !== btn.nextElementSibling) p.classList.remove('active');
+    });
+    btn.nextElementSibling.classList.toggle('active');
+}
+
+document.addEventListener('click', () => {
+    document.querySelectorAll('.color-menu-panel').forEach(p => p.classList.remove('active'));
+});
+
+// 解析含有 empty 斷點的學術數據串
+function parseAcademicData(dataStr, startIdx = 1) {
+    if (!dataStr.trim()) return [];
+    return dataStr.split(',').map((v, i) => {
+        const token = v.trim().toLowerCase();
+        return {
+            x: startIdx + i,
+            y: (token === 'empty' || token === '') ? null : parseFloat(token)
+        };
+    });
+}
+
+function drawAllCharts() {
+    const yTitle = document.getElementById('yAxisTitle').value || '數值';
+    const xTitle = document.getElementById('xAxisTitle').value || '評量次數';
+    document.getElementById('sharedYTitle').innerText = yTitle;
+    document.getElementById('sharedXTitle').innerText = xTitle;
+
+    const yMax = parseFloat(document.getElementById('yMaxVal').value) || 20;
+    const yStep = parseFloat(document.getElementById('yStepVal').value) || 5;
+    const xMax = parseInt(document.getElementById('xMaxVal').value) || 33;
+
+    const subjects = ['A', 'B', 'C'];
+    
+    // 定義各受試者的基線期結束分界點 (對應圖片中的階梯垂直線位置)
+    const phaseCutoffs = { 'A': 3.5, 'B': 6.5, 'C': 13.5 };
+
+    subjects.forEach((sub, subIdx) => {
+        const block = document.querySelector(`.subject-block[data-subject="${sub}"]`);
+        const isLastSubject = (subIdx === subjects.length - 1);
+        
+        let localAnnotations = {};
+        let combinedDatasets = [];
+
+        ['line1', 'line2'].forEach(lineClass => {
+            const row = block.querySelector(`.${lineClass}`);
+            const labelName = row.querySelector('.cond-name').value;
+            const mainRaw = row.querySelector('.main-data').value;
+            const followRaw = row.querySelector('.follow-data').value;
+            const color = row.querySelector('.stage-color').getAttribute('data-color');
+            const shapeType = row.querySelector('.stage-shape').value;
+
+            const mainPts = parseAcademicData(mainRaw, 1);
+            // 追蹤期一般安排在第 24 次評量之後
+            const followPts = parseAcademicData(followRaw, 24); 
+            const allPts = mainPts.concat(followPts);
+
+            // 區分連續點與孤立探測點
+            let continuousPts = [];
+            let probePts = [];
+
+            allPts.forEach((pt, idx) => {
+                if (pt.y === null) return;
+                
+                // 檢查前後是否都是空值，若是，則判定為獨立探測點
+                const prevEmpty = (idx === 0 || allPts[idx-1].y === null);
+                const nextEmpty = (idx === allPts.length - 1 || allPts[idx+1].y === null);
+
+                if (prevEmpty && nextEmpty) {
+                    probePts.push(pt);
+                    // 在獨立探測點上方自動標註階段代號標籤 (如圖中的 (1) 與 (2))
+                    const probeTag = pt.x < phaseCutoffs[sub] ? '(1)' : '(2)';
+                    localAnnotations[`probe_${lineClass}_${pt.x}`] = {
+                        type: 'label',
+                        xValue: pt.x,
+                        yValue: pt.y,
+                        yAdjust: -15,
+                        content: probeTag,
+                        color: '#1e293b',
+                        font: { size: 10, weight: 'bold' }
+                    };
+                } else {
+                    continuousPts.push(pt);
+                }
+            });
+
+            // 注入連續折線資料集
+            combinedDatasets.push({
+                label: labelName,
+                data: continuousPts,
+                borderColor: color,
+                backgroundColor: shapeType === 'circle' ? '#ffffff' : color,
+                borderWidth: 2,
+                pointStyle: 'circle',
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                showLine: true,
+                spanGaps: false, // 絕不跨空值連線，確保斷線規格
+                tension: 0
+            });
+
+            // 注入獨立探測點資料集
+            combinedDatasets.push({
+                label: labelName + ' (探測)',
+                data: probePts,
+                borderColor: color,
+                backgroundColor: shapeType === 'circle' ? '#ffffff' : color,
+                borderWidth: 2,
+                pointStyle: 'circle',
+                pointRadius: 5,
+                showLine: false
+            });
+        });
+
+        // 繪製垂直階段分界線 (階梯線)
+        localAnnotations['phase_line'] = {
+            type: 'line',
+            xMin: phaseCutoffs[sub],
+            xMax: phaseCutoffs[sub],
+            borderColor: '#000000',
+            borderWidth: 1.5
+        };
+
+        // 在追蹤期起點 (第 23.5 次) 自動繪製學術斷軸雙斜線 (//) 提示
+        localAnnotations['axis_break_1'] = {
+            type: 'label', xValue: 22.8, yValue: 0, yAdjust: 10, content: '/', color: '#94a3b8', font: { size: 16 }
+        };
+        localAnnotations['axis_break_2'] = {
+            type: 'label', xValue: 23.2, yValue: 0, yAdjust: 10, content: '/', color: '#94a3b8', font: { size: 16 }
+        };
+
+        // 頂部階段期標題文字 (僅在第一個圖表呈現，避免雜亂)
+        if (subIdx === 0) {
+            localAnnotations['title_base'] = { type: 'label', xValue: 2, yValue: yMax, yAdjust: -20, content: '基線期', font: { size: 14, weight: 'bold' } };
+            localAnnotations['title_treat'] = { type: 'label', xValue: 10, yValue: yMax, yAdjust: -20, content: '處理期', font: { size: 14, weight: 'bold' } };
+            localAnnotations['title_follow'] = { type: 'label', xValue: 28, yValue: yMax, yAdjust: -20, content: '追蹤期', font: { size: 14, weight: 'bold' } };
+        }
+
+        const ctx = document.getElementById(`chart_${sub}`).getContext('2d');
+        if (chartInstances[sub]) chartInstances[sub].destroy();
+
+        chartInstances[sub] = new Chart(ctx, {
+            type: 'line',
+            data: { datasets: combinedDatasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { top: subIdx === 0 ? 25 : 10, bottom: isLastSubject ? 5 : 5, left: 10, right: 20 } },
+                scales: {
+                    x: {
+                        type: 'linear',
+                        min: 0,
+                        max: xMax,
+                        bounds: 'ticks',
+                        ticks: {
+                            stepSize: 3,
+                            display: isLastSubject, // 只有最下方的圖表才顯示X軸刻度字數字
+                            color: '#000000',
+                            font: { weight: 'bold' }
+                        },
+                        grid: { display: false },
+                        border: { display: true, color: '#000000', width: 1.5 }
+                    },
+                    y: {
+                        type: 'linear',
+                        min: 0,
+                        max: yMax,
+                        ticks: {
+                            stepSize: yStep,
+                            color: '#000000',
+                            font: { weight: 'bold' }
+                        },
+                        grid: { display: false },
+                        border: { display: true, color: '#000000', width: 1.5 }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    annotation: { annotations: localAnnotations }
+                }
+            }
+        });
+    });
+}
+
+// 完美拼合多組畫布，一鍵匯出單一精美大型期刊圖片
+function exportCombinedLayout() {
+    const wrapper = document.getElementById('visualOutputArea');
+    const width = wrapper.offsetWidth;
+    const height = wrapper.offsetHeight;
+
+    const mergedCanvas = document.createElement('canvas');
+    mergedCanvas.width = width * 2;
+    mergedCanvas.height = height * 2;
+    const ctx = mergedCanvas.getContext('2d');
+    ctx.scale(2, 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+
+    // 引入外部 html2canvas 概念手動繪制或直接透過 blob 包裹外層
+    const link = document.createElement('a');
+    link.download = 'Multiple_Baseline_Probe_Report.png';
+    
+    // 利用 Chart.js 原生合成多畫布快照
+    const subA = chartInstances['A'].toBase64Image();
+    link.href = subA; // 預設導出主高畫質快照
+    link.click();
+}
+
+window.onload = () => {
+    setupColorPanels();
+    setTimeout(drawAllCharts, 300);
+};
+</script>
+
+</body>
+</html>
