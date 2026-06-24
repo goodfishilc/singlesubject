@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>可調期數-多探測/跨受試者多基線研究圖表產生器</title>
+    <title>可調期數-同階段連線-多探測研究圖表產生器</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
@@ -52,8 +52,8 @@
 <body>
 
 <div class="container">
-    <h2>多探測/跨受試者多基線研究圖表分析儀 (自定義研究階段版)</h2>
-    <div class="subtitle">支援任意新增/減少研究期數，系統將動態重組資料庫與渲染對齊階梯線</div>
+    <h2>多探測/跨受試者多基線研究圖表分析儀 (同階段連線加強版)</h2>
+    <div class="subtitle">同階段內折線自動跨空值連接，不同階段間維持階梯線完美斷線</div>
     
     <div class="input-area">
         <div class="setting-section">
@@ -68,7 +68,6 @@
 
         <div class="setting-section">
             <div class="section-title">研究階段(期數)自定義管理</div>
-            <p style="font-size: 0.85em; color: #64748b; margin-top:-10px; margin-bottom:15px;">您可以在此任意修改或新增階段。當您「修改名稱」或「新增階段」時，下方的個案輸入區會自動同步更新。</p>
             <div id="phasesContainer">
                 <div class="phase-manage-row">
                     <input type="text" class="phase-name-setup" value="基線期" oninput="buildSubjectsDataInputs()">
@@ -88,8 +87,7 @@
 
         <div class="setting-section">
             <div class="section-title">各受試者各階段數據配置 (空值請填 empty)</div>
-            <div id="subjectsContainer">
-                </div>
+            <div id="subjectsContainer"></div>
         </div>
 
         <div class="btn-group">
@@ -103,13 +101,12 @@
             <span style="color: #ea580c;">○ 在街道 (非訓練情境) 上的表現</span>
         </div>
         
-        <div id="canvasRowsContainer">
-            </div>
+        <div id="canvasRowsContainer"></div>
         
         <div style="text-align: center; font-weight: bold; font-size: 14px; margin-top: 10px; color: #334155;" id="sharedXTitle">評量次數</div>
     </div>
     
-    <div class="copyright-footer">© 俞昭銘@GEMINI 多階段擴充版</div>
+    <div class="copyright-footer">© 俞昭銘@GEMINI 學術圖表優化版</div>
 </div>
 
 <script>
@@ -117,14 +114,12 @@ if (window.ChartAnnotation) Chart.register(window.ChartAnnotation);
 
 let chartInstances = {};
 
-// 預設經典數據快取
 const defaultPresetData = {
     A: { line1: ["5, 5, 5", "7, 5, 5, 8, 11, 11, 11, 12, 12, 12, 13", "empty, empty, empty, 14, empty, empty, 14"], line2: ["4, 4, 4", "4, 4, 5, 5, 13, 13, 15, 15, 15, 15", "empty, empty, empty, 15, empty, empty, 15"] },
     B: { line1: ["6, empty, empty", "6, empty, empty, 6, 8, 7, 7, 6, 7, 9, 10, 13, 12, 16", "empty, empty, empty, 15, empty, empty, 15"], line2: ["5, empty, empty", "5, empty, empty, 6, 7, 6, 5, 7, 12, 14, 16, 18", "empty, empty, empty, 16, empty, empty, 16"] },
     C: { line1: ["4, empty, empty, empty, empty, 5, 5, empty, empty, empty, empty", "6, 6, 7, 15, 14, 14, 14, 15, 13", "empty, empty, empty, 13, empty, empty, 13"], line2: ["5, empty, empty, empty, empty, 4, 4, empty, empty, empty, empty", "5, 7, 5, 8, 13, 11, 14, 15, 14", "empty, empty, empty, 14, empty, empty, 14"] }
 };
 
-// 正確修正：新增期數時，設定預設名稱並強制觸發欄位重組
 function addPhaseRow() {
     const container = document.getElementById('phasesContainer');
     const row = document.createElement('div');
@@ -134,15 +129,14 @@ function addPhaseRow() {
         <button class="btn-phase-del" onclick="removePhaseRow(this)">刪除</button>
     `;
     container.appendChild(row);
-    buildSubjectsDataInputs(); // 同步更新下方輸入欄位
+    buildSubjectsDataInputs();
 }
 
 function removePhaseRow(btn) {
     btn.parentElement.remove();
-    buildSubjectsDataInputs(); // 同步更新下方輸入欄位
+    buildSubjectsDataInputs();
 }
 
-// 動態組裝與保留現有數值邏輯
 function buildSubjectsDataInputs() {
     const phases = [];
     document.querySelectorAll('.phase-name-setup').forEach(input => {
@@ -152,7 +146,6 @@ function buildSubjectsDataInputs() {
     const subjects = ['A', 'B', 'C'];
     const container = document.getElementById('subjectsContainer');
     
-    // 暫存當前使用者已經輸入在格子裡的數值，避免打字或新增時被清空
     const currentValues = {};
     subjects.forEach(sub => {
         currentValues[sub] = { line1: [], line2: [] };
@@ -174,7 +167,6 @@ function buildSubjectsDataInputs() {
         let line2GridHTML = '';
         
         phases.forEach((pName, pIdx) => {
-            // 讀取暫存值 -> 讀取經典預設值 -> 若都沒有則給 empty
             let val1 = currentValues[sub].line1[pIdx] !== undefined ? currentValues[sub].line1[pIdx] : (defaultPresetData[sub].line1[pIdx] || 'empty');
             let val2 = currentValues[sub].line2[pIdx] !== undefined ? currentValues[sub].line2[pIdx] : (defaultPresetData[sub].line2[pIdx] || 'empty');
             
@@ -204,7 +196,6 @@ function buildSubjectsDataInputs() {
         container.appendChild(block);
     });
 
-    // 重新配置底部的 Canvas 畫布
     const canvasContainer = document.getElementById('canvasRowsContainer');
     canvasContainer.innerHTML = '';
     subjects.forEach((sub, idx) => {
@@ -282,58 +273,58 @@ function drawAllCharts() {
         });
 
         linesConfig.forEach(cfg => {
-            let allPts = [];
-            let xTracker = 1;
-            
+            // 重大變革：改為「每一階段獨立成一個折線資料集」，確保階段間絕對不連線，但階段內部完美跨空值連線
             phases.forEach((_, pIdx) => {
                 if(!cfg.inputs[pIdx]) return;
                 const vals = parseInputToArray(cfg.inputs[pIdx].value);
-                vals.forEach(v => {
-                    allPts.push({ x: xTracker, y: v });
-                    xTracker++;
-                });
-            });
-
-            let continuousPts = [];
-            let probePts = [];
-
-            allPts.forEach((pt, idx) => {
-                if (pt.y === null) return;
-                const prevEmpty = (idx === 0 || allPts[idx-1].y === null);
-                const nextEmpty = (idx === allPts.length - 1 || allPts[idx+1].y === null);
-
-                if (prevEmpty && nextEmpty) {
-                    probePts.push(pt);
-                    let matchedPhaseIdx = 1;
-                    for(let e=0; e<phaseXEdges.length-1; e++) {
-                        if(pt.x >= phaseXEdges[e] && pt.x <= phaseXEdges[e+1]) {
-                            matchedPhaseIdx = e + 1;
-                            break;
-                        }
-                    }
-                    localAnnotations[`probe_${cfg.classIdx}_${pt.x}`] = {
-                        type: 'label', xValue: pt.x, yValue: pt.y, yAdjust: -15,
-                        content: `(${matchedPhaseIdx})`, color: '#1e293b', font: { size: 10, weight: 'bold' }
-                    };
-                } else {
-                    continuousPts.push(pt);
+                
+                let phasePts = [];
+                let startX = 1;
+                // 計算當前階段在全體 X 軸中的正確起點坐標
+                for(let prev = 0; prev < pIdx; prev++) {
+                    startX += subjectPhaseLengths[sub][prev];
                 }
-            });
 
-            combinedDatasets.push({
-                label: cfg.name, data: continuousPts, borderColor: cfg.color,
-                backgroundColor: cfg.shape === 'circle' ? '#ffffff' : cfg.color,
-                borderWidth: 2, pointStyle: 'circle', pointRadius: 5, showLine: true, spanGaps: false, tension: 0
-            });
+                vals.forEach((v, vIdx) => {
+                    phasePts.push({ x: startX + vIdx, y: v });
+                });
 
-            combinedDatasets.push({
-                label: cfg.name + ' (探測)', data: probePts, borderColor: cfg.color,
-                backgroundColor: cfg.shape === 'circle' ? '#ffffff' : cfg.color,
-                borderWidth: 2, pointStyle: 'circle', pointRadius: 5, showLine: false
+                // 過濾出這個階段內的孤立探測點，以便生成上標 (1) (2)
+                phasePts.forEach((pt, idx) => {
+                    if (pt.y === null) return;
+                    const prevEmpty = (idx === 0 || phasePts[idx-1].y === null);
+                    const nextEmpty = (idx === phasePts.length - 1 || phasePts[idx+1].y === null);
+
+                    if (prevEmpty && nextEmpty) {
+                        localAnnotations[`probe_${sub}_${cfg.classIdx}_${pt.x}`] = {
+                            type: 'label', xValue: pt.x, yValue: pt.y, yAdjust: -15,
+                            content: `(${pIdx + 1})`, color: '#1e293b', font: { size: 10, weight: 'bold' }
+                        };
+                    }
+                });
+
+                // 將這個階段的折線塞入圖表，啟動 spanGaps: true
+                combinedDatasets.push({
+                    label: `${cfg.name}-P${pIdx}`,
+                    data: phasePts.filter(pt => pt.y !== null || pt.y === null), // 保留 null 節點
+                    borderColor: cfg.color,
+                    backgroundColor: cfg.shape === 'circle' ? '#ffffff' : cfg.color,
+                    borderWidth: 2,
+                    pointStyle: 'circle',
+                    pointRadius: function(context) {
+                        // 隱藏 null 節點的圓點
+                        const index = context.dataIndex;
+                        const value = context.dataset.data[index];
+                        return (value && value.y !== null) ? 5 : 0;
+                    },
+                    showLine: true,
+                    spanGaps: true, // 核心修正：允許跨空值連線！
+                    tension: 0
+                });
             });
         });
 
-        // 繪製垂直實線
+        // 繪製垂直階段分界線
         for(let p = 0; p < phaseXEdges.length - 2; p++) {
             let boundaryX = phaseXEdges[p+1];
             localAnnotations[`boundary_line_${p}`] = {
@@ -341,7 +332,7 @@ function drawAllCharts() {
             };
         }
 
-        // 自動打斷軸斜線 (//)
+        // 追蹤期斷軸 (//) 提示
         let followUpIdx = phases.findIndex(name => name.includes('追蹤'));
         if (followUpIdx !== -1 && followUpIdx > 0) {
             let breakX = phaseXEdges[followUpIdx];
