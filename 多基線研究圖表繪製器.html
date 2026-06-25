@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>跨畫布階梯連線-多探測研究圖表產生器(含高度與趨勢線版)</title>
+    <title>跨畫布階梯連線-多探測研究圖表產生器(完整功能終極版)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
@@ -38,17 +38,19 @@
         .condition-meta { display: flex; gap: 15px; align-items: center; margin-bottom: 8px; }
         .phase-inputs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
         
-        .btn-group { display: flex; gap: 12px; margin-top: 20px; }
-        button.main-btn { flex: 1; padding: 14px; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: 700; transition: all 0.2s; }
+        .btn-group { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 15px; }
+        button.main-btn { flex: 1; min-width: 200px; padding: 14px; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 15px; font-weight: 700; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .btn-update { background-color: #2563eb; }
         .btn-update:hover { background-color: #1d4ed8; }
+        .btn-export { background-color: #10b981; }
+        .btn-export:hover { background-color: #059669; }
+        .btn-import { background-color: #6366f1; }
+        .btn-import:hover { background-color: #4f46e5; }
         
         .multi-chart-container { display: flex; flex-direction: column; margin-top: 35px; background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 25px; position: relative; }
         .chart-row-wrapper { display: flex; align-items: center; position: relative; z-index: 2; }
         .y-axis-left-title { writing-mode: vertical-lr; text-orientation: mixed; text-align: center; font-size: 15px; font-weight: bold; color: #334155; width: 40px; }
         .subject-label-side { width: 70px; font-weight: bold; font-size: 14px; text-align: center; color: #475569; }
-        
-        /* 移除原先寫死的固定高度，改由 JS 動態控制 style */
         .chart-box { flex: 1; position: relative; }
         
         #stepLineOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
@@ -59,8 +61,8 @@
 <body>
 
 <div class="container">
-    <h2>多探測/跨受試者多基線研究圖表分析儀 (全域階梯連線版)</h2>
-    <div class="subtitle">空值不連線設定：同一階段內若有減號 ( - )，該處折線將會自動斷開，並支援自訂畫布高度</div>
+    <h2>多探測/跨受試者多基線研究圖表分析儀 (全域整合連線版)</h2>
+    <div class="subtitle">全面整合：支援自訂情境圖例、圖表高度縮放、虛線趨勢線開關與 Excel (CSV) 雙向檔案連動功能</div>
     
     <div class="input-area">
         <div class="setting-section">
@@ -108,7 +110,10 @@
         </div>
 
         <div class="btn-group">
-            <button class="main-btn btn-update" onclick="drawAllCharts()">更新多基線圖表與全域階梯線</button>
+            <button class="main-btn btn-update" onclick="drawAllCharts()">📊 更新多基線圖表與全域階梯線</button>
+            <button class="main-btn btn-export" onclick="exportToCSV()">💾 匯出資料至 Excel (CSV)</button>
+            <button class="main-btn btn-import" onclick="document.getElementById('importFile').click()">📂 匯入 Excel (CSV) 資料</button>
+            <input type="file" id="importFile" accept=".csv" style="display: none;" onchange="importFromCSV(this)">
         </div>
     </div>
     
@@ -125,7 +130,7 @@
         <div style="text-align: center; font-weight: bold; font-size: 14px; margin-top: 10px; color: #334155; position: relative; z-index: 5;" id="sharedXTitle">評量次數</div>
     </div>
     
-    <div class="copyright-footer">© 俞昭銘@GEMINI 階梯連線規格版</div>
+    <div class="copyright-footer">© 俞昭銘@GEMINI 階梯趨勢連線連動規格版</div>
 </div>
 
 <script>
@@ -135,15 +140,17 @@ let chartInstances = {};
 let globalChartsMap = {}; 
 let globalPhaseEdges = {}; 
 
+// 初始內建數據
 const defaultPresetData = {
     A: { line1: ["5, 5, 5", "7, 5, 5, 8, 11, 11, 11, 12, 12, 12, 13", "-, -, -, 14, -, -, 14"], line2: ["4, 4, 4", "4, 4, 5, 5, 13, 13, 15, 15, 15, 15", "-, -, -, 15, -, -, 15"] },
     B: { line1: ["6, -, -", "6, -, -, 6, 8, 7, 7, 6, 7, 9, 10, 13, 12, 16", "-, -, -, 15, -, -, 15"], line2: ["5, -, -", "5, -, -, 6, 7, 6, 5, 7, 12, 14, 16, 18", "-, -, -, 16, -, -, 16"] },
     C: { line1: ["4, -, -, -, -, 5, 5, -, -, -, -", "6, 6, 7, 15, 14, 14, 14, 15, 13", "-, -, -, 13, -, -, 13"], line2: ["5, -, -, -, -, 4, 4, -, -, -, -", "5, 7, 5, 8, 13, 11, 14, 15, 14", "-, -, -, 14, -, -, 14"] }
 };
 
+// 階段內趨勢線最小平方法核心演算法
 function calculateTrendline(points) {
     const validPoints = points.filter(p => p.y !== null);
-    if (validPoints.length < 2) return [];
+    if (validPoints.length < 2) return []; 
 
     let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
     const n = validPoints.length;
@@ -258,9 +265,7 @@ function buildSubjectsDataInputs() {
         container.appendChild(block);
     });
 
-    // 讀取高度設定並動態綁定到圖表外層盒子上
     const userH = parseFloat(document.getElementById('chartHeightVal').value) || 220;
-
     const canvasContainer = document.getElementById('canvasRowsContainer');
     canvasContainer.innerHTML = '';
     subjects.forEach((sub, idx) => {
@@ -515,6 +520,102 @@ function drawGlobalStepLines(totalPhases) {
             svg.appendChild(pathEl);
         }
     }
+}
+
+// 【Excel 整合：資料數據匯出為 CSV 功能】
+function exportToCSV() {
+    const phases = [];
+    document.querySelectorAll('.phase-name-setup').forEach(input => {
+        if(input.value.trim()) phases.push(input.value.trim());
+    });
+    
+    const subjects = ['A', 'B', 'C'];
+    let csvContent = "\uFEFF"; // 避免 Excel 中文亂碼的 BOM 標頭
+    
+    csvContent += "個案編號,情境類型,圖表圖例名稱," + phases.join(",") + "\n";
+    
+    subjects.forEach(sub => {
+        const block = document.querySelector(`.subject-block[data-subject="${sub}"]`);
+        const t1 = document.getElementById('legendTitle1').value;
+        const t2 = document.getElementById('legendTitle2').value;
+        
+        const l1Vals = Array.from(block.querySelectorAll('.line1-phase-val')).map(i => `"${i.value}"`);
+        const l2Vals = Array.from(block.querySelectorAll('.line2-phase-val')).map(i => `"${i.value}"`);
+        
+        csvContent += `${sub},情境一,${t1},${l1Vals.join(",")}\n`;
+        csvContent += `${sub},情境二,${t2},${l2Vals.join(",")}\n`;
+    });
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `單一受試研究數據備份_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// 【Excel 整合：從 CSV 讀取數據並還原網頁功能】
+function importFromCSV(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const text = e.target.result;
+        const lines = text.split("\n").map(line => line.trim()).filter(line => line.length > 0);
+        
+        if (lines.length < 2) return alert("檔案內容或格式不正確！");
+        
+        const headers = lines[0].split(",");
+        const importedPhases = headers.slice(3); 
+        
+        // 1. 還原研究階段
+        const phasesContainer = document.getElementById('phasesContainer');
+        phasesContainer.innerHTML = '';
+        importedPhases.forEach(pName => {
+            const row = document.createElement('div');
+            row.className = 'phase-manage-row';
+            row.innerHTML = `
+                <input type="text" class="phase-name-setup" value="${pName.replace(/"/g,'')}" oninput="buildSubjectsDataInputs()">
+                <button class="btn-phase-del" onclick="removePhaseRow(this)">刪除</button>
+            `;
+            phasesContainer.appendChild(row);
+        });
+        
+        buildSubjectsDataInputs();
+        
+        // 2. 還原與填入數據
+        for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(",");
+            if (cols.length < 3) continue;
+            
+            const sub = cols[0].trim();
+            const type = cols[1].trim();
+            const legendName = cols[2].replace(/"/g,'').trim();
+            const dataVals = cols.slice(3).map(v => v.replace(/"/g,'').trim());
+            
+            if (type === "情境一") document.getElementById('legendTitle1').value = legendName;
+            if (type === "情境二") document.getElementById('legendTitle2').value = legendName;
+            
+            const block = document.querySelector(`.subject-block[data-subject="${sub}"]`);
+            if (block) {
+                const targetInputs = (type === "情境一") ? 
+                    block.querySelectorAll('.line1-phase-val') : block.querySelectorAll('.line2-phase-val');
+                
+                targetInputs.forEach((inputTarget, pIdx) => {
+                    if (dataVals[pIdx] !== undefined) {
+                        inputTarget.value = dataVals[pIdx];
+                    }
+                });
+            }
+        }
+        
+        updateLiveLegends();
+        drawAllCharts();
+        alert("Excel CSV 歷史資料同步完成！已自動更新繪製。");
+    };
+    reader.readAsText(file, "UTF-8");
 }
 
 window.addEventListener('resize', () => {
