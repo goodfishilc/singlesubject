@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>跨畫布階梯連線-多探測研究圖表產生器(完整功能終極版)</title>
+    <title>跨畫布階梯連線-多探測研究圖表產生器(欄位拆分優化版)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
@@ -62,7 +62,7 @@
 
 <div class="container">
     <h2>多探測/跨受試者多基線研究圖表分析儀 (全域整合連線版)</h2>
-    <div class="subtitle">全面整合：支援自訂情境圖例、圖表高度縮放、虛線趨勢線開關與 Excel (CSV) 雙向檔案連動功能</div>
+    <div class="subtitle">全面整合：支援自訂情境圖例、圖表高度縮放、虛線趨勢線開關與 Excel (CSV) 雙向欄位拆分連動</div>
     
     <div class="input-area">
         <div class="setting-section">
@@ -111,7 +111,7 @@
 
         <div class="btn-group">
             <button class="main-btn btn-update" onclick="drawAllCharts()">📊 更新多基線圖表與全域階梯線</button>
-            <button class="main-btn btn-export" onclick="exportToCSV()">💾 匯出資料至 Excel (CSV)</button>
+            <button class="main-btn btn-export" onclick="exportToCSV()">💾 匯出資料至 Excel (CSV欄位拆分)</button>
             <button class="main-btn btn-import" onclick="document.getElementById('importFile').click()">📂 匯入 Excel (CSV) 資料</button>
             <input type="file" id="importFile" accept=".csv" style="display: none;" onchange="importFromCSV(this)">
         </div>
@@ -140,14 +140,12 @@ let chartInstances = {};
 let globalChartsMap = {}; 
 let globalPhaseEdges = {}; 
 
-// 初始內建數據
 const defaultPresetData = {
     A: { line1: ["5, 5, 5", "7, 5, 5, 8, 11, 11, 11, 12, 12, 12, 13", "-, -, -, 14, -, -, 14"], line2: ["4, 4, 4", "4, 4, 5, 5, 13, 13, 15, 15, 15, 15", "-, -, -, 15, -, -, 15"] },
     B: { line1: ["6, -, -", "6, -, -, 6, 8, 7, 7, 6, 7, 9, 10, 13, 12, 16", "-, -, -, 15, -, -, 15"], line2: ["5, -, -", "5, -, -, 6, 7, 6, 5, 7, 12, 14, 16, 18", "-, -, -, 16, -, -, 16"] },
     C: { line1: ["4, -, -, -, -, 5, 5, -, -, -, -", "6, 6, 7, 15, 14, 14, 14, 15, 13", "-, -, -, 13, -, -, 13"], line2: ["5, -, -, -, -, 4, 4, -, -, -, -", "5, 7, 5, 8, 13, 11, 14, 15, 14", "-, -, -, 14, -, -, 14"] }
 };
 
-// 階段內趨勢線最小平方法核心演算法
 function calculateTrendline(points) {
     const validPoints = points.filter(p => p.y !== null);
     if (validPoints.length < 2) return []; 
@@ -522,7 +520,7 @@ function drawGlobalStepLines(totalPhases) {
     }
 }
 
-// 【Excel 整合：資料數據匯出為 CSV 功能】
+// 【優化版：匯出符合 Excel 標準欄位拆分的 CSV 檔】
 function exportToCSV() {
     const phases = [];
     document.querySelectorAll('.phase-name-setup').forEach(input => {
@@ -530,32 +528,74 @@ function exportToCSV() {
     });
     
     const subjects = ['A', 'B', 'C'];
-    let csvContent = "\uFEFF"; // 避免 Excel 中文亂碼的 BOM 標頭
     
-    csvContent += "個案編號,情境類型,圖表圖例名稱," + phases.join(",") + "\n";
+    // 1. 先掃描各個案各階段，找出每個階段「最大需要幾欄」
+    let phaseMaxCols = {};
+    phases.forEach((pName, pIdx) => {
+        let maxLen = 1; 
+        subjects.forEach(sub => {
+            const block = document.querySelector(`.subject-block[data-subject="${sub}"]`);
+            if(block) {
+                const v1 = block.querySelectorAll('.line1-phase-val')[pIdx]?.value || '';
+                const v2 = block.querySelectorAll('.line2-phase-val')[pIdx]?.value || '';
+                const len1 = v1.split(',').length;
+                const len2 = v2.split(',').length;
+                if(len1 > maxLen) maxLen = len1;
+                if(len2 > maxLen) maxLen = len2;
+            }
+        });
+        phaseMaxCols[pIdx] = maxLen;
+    });
+
+    // 2. 建立 CSV 的精細表頭（例如：基線期_1, 基線期_2, 處理期_1...）
+    let csvContent = "\uFEFF"; 
+    let headers = ["個案編號", "情境類型", "圖表圖例名稱"];
+    phases.forEach((pName, pIdx) => {
+        const totalSubCols = phaseMaxCols[pIdx];
+        for(let i = 1; i <= totalSubCols; i++) {
+            headers.push(`${pName}_第${i}次`);
+        }
+    });
+    csvContent += headers.join(",") + "\n";
     
+    // 3. 填入拆分後的實際數值
     subjects.forEach(sub => {
         const block = document.querySelector(`.subject-block[data-subject="${sub}"]`);
         const t1 = document.getElementById('legendTitle1').value;
         const t2 = document.getElementById('legendTitle2').value;
         
-        const l1Vals = Array.from(block.querySelectorAll('.line1-phase-val')).map(i => `"${i.value}"`);
-        const l2Vals = Array.from(block.querySelectorAll('.line2-phase-val')).map(i => `"${i.value}"`);
-        
-        csvContent += `${sub},情境一,${t1},${l1Vals.join(",")}\n`;
-        csvContent += `${sub},情境二,${t2},${l2Vals.join(",")}\n`;
+        // 分別處理情境一與情境二
+        ["情境一", "情境二"].forEach(type => {
+            let rowCells = [sub, type, (type === "情境一" ? t1 : t2)];
+            const inputs = (type === "情境一") ? 
+                block.querySelectorAll('.line1-phase-val') : block.querySelectorAll('.line2-phase-val');
+                
+            phases.forEach((_, pIdx) => {
+                const valStr = inputs[pIdx]?.value || '';
+                const parts = valStr.split(',').map(v => v.trim());
+                const targetLen = phaseMaxCols[pIdx];
+                
+                for(let i = 0; i < targetLen; i++) {
+                    // 如果該次無數據，就留白（或者填 - ），這裡用原數值或留空補齊
+                    let cellVal = (parts[i] !== undefined && parts[i] !== '') ? parts[i] : "-";
+                    rowCells.push(`"${cellVal}"`);
+                }
+            });
+            csvContent += rowCells.join(",") + "\n";
+        });
     });
     
+    // 4. 下載機制
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `單一受試研究數據備份_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute("download", `單一受試研究拆分數據表_${new Date().toISOString().slice(0,10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 }
 
-// 【Excel 整合：從 CSV 讀取數據並還原網頁功能】
+// 【相容版：智慧還原 CSV 到網頁輸入欄】
 function importFromCSV(input) {
     const file = input.files[0];
     if (!file) return;
@@ -565,19 +605,29 @@ function importFromCSV(input) {
         const text = e.target.result;
         const lines = text.split("\n").map(line => line.trim()).filter(line => line.length > 0);
         
-        if (lines.length < 2) return alert("檔案內容或格式不正確！");
+        if (lines.length < 2) return alert("檔案內容不正確！");
         
-        const headers = lines[0].split(",");
-        const importedPhases = headers.slice(3); 
+        const headers = lines[0].split(",").map(h => h.replace(/"/g,'').trim());
         
-        // 1. 還原研究階段
+        // 從表頭逆向解析有哪些不重複的研究階段
+        let importedPhases = [];
+        headers.slice(3).forEach(h => {
+            let pName = h.split('_')[0];
+            if(pName && !importedPhases.includes(pName)) {
+                importedPhases.push(pName);
+            }
+        });
+        
+        if(importedPhases.length === 0) return alert("無法解析出研究階段名稱！");
+
+        // 1. 重構研究階段管理區
         const phasesContainer = document.getElementById('phasesContainer');
         phasesContainer.innerHTML = '';
         importedPhases.forEach(pName => {
             const row = document.createElement('div');
             row.className = 'phase-manage-row';
             row.innerHTML = `
-                <input type="text" class="phase-name-setup" value="${pName.replace(/"/g,'')}" oninput="buildSubjectsDataInputs()">
+                <input type="text" class="phase-name-setup" value="${pName}" oninput="buildSubjectsDataInputs()">
                 <button class="btn-phase-del" onclick="removePhaseRow(this)">刪除</button>
             `;
             phasesContainer.appendChild(row);
@@ -585,15 +635,14 @@ function importFromCSV(input) {
         
         buildSubjectsDataInputs();
         
-        // 2. 還原與填入數據
+        // 2. 將分散的欄位重新組合回網頁所需的「逗點隔開」格式
         for (let i = 1; i < lines.length; i++) {
-            const cols = lines[i].split(",");
+            const cols = lines[i].split(",").map(c => c.replace(/"/g,'').trim());
             if (cols.length < 3) continue;
             
-            const sub = cols[0].trim();
-            const type = cols[1].trim();
-            const legendName = cols[2].replace(/"/g,'').trim();
-            const dataVals = cols.slice(3).map(v => v.replace(/"/g,'').trim());
+            const sub = cols[0];
+            const type = cols[1];
+            const legendName = cols[2];
             
             if (type === "情境一") document.getElementById('legendTitle1').value = legendName;
             if (type === "情境二") document.getElementById('legendTitle2').value = legendName;
@@ -603,9 +652,25 @@ function importFromCSV(input) {
                 const targetInputs = (type === "情境一") ? 
                     block.querySelectorAll('.line1-phase-val') : block.querySelectorAll('.line2-phase-val');
                 
-                targetInputs.forEach((inputTarget, pIdx) => {
-                    if (dataVals[pIdx] !== undefined) {
-                        inputTarget.value = dataVals[pIdx];
+                // 依階段彙整數值
+                importedPhases.forEach((pName, pIdx) => {
+                    let collectedVals = [];
+                    headers.forEach((h, hIdx) => {
+                        if(h.startsWith(pName + "_")) {
+                            if(cols[hIdx] !== undefined && cols[hIdx] !== '') {
+                                collectedVals.push(cols[hIdx]);
+                            }
+                        }
+                    });
+                    
+                    // 去除末尾連續的 "-" 保持畫面乾淨
+                    while(collectedVals.length > 0 && collectedVals[collectedVals.length - 1] === "-") {
+                        collectedVals.pop();
+                    }
+                    if(collectedVals.length === 0) collectedVals.push("-");
+                    
+                    if(targetInputs[pIdx]) {
+                        targetInputs[pIdx].value = collectedVals.join(", ");
                     }
                 });
             }
@@ -613,7 +678,7 @@ function importFromCSV(input) {
         
         updateLiveLegends();
         drawAllCharts();
-        alert("Excel CSV 歷史資料同步完成！已自動更新繪製。");
+        alert("拆分後的 Excel 數據已智慧合併並連動成功！");
     };
     reader.readAsText(file, "UTF-8");
 }
