@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>多基線研究圖表產生器</title>
+    <title>跨畫布階梯連線-多探測研究圖表產生器(含高度與趨勢線版)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
@@ -47,7 +47,9 @@
         .chart-row-wrapper { display: flex; align-items: center; position: relative; z-index: 2; }
         .y-axis-left-title { writing-mode: vertical-lr; text-orientation: mixed; text-align: center; font-size: 15px; font-weight: bold; color: #334155; width: 40px; }
         .subject-label-side { width: 70px; font-weight: bold; font-size: 14px; text-align: center; color: #475569; }
-        .chart-box { flex: 1; height: 220px; position: relative; }
+        
+        /* 移除原先寫死的固定高度，改由 JS 動態控制 style */
+        .chart-box { flex: 1; position: relative; }
         
         #stepLineOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
         
@@ -57,8 +59,8 @@
 <body>
 
 <div class="container">
-    <h2>跨受試者多基線研究圖表繪製器</h2>
-    <div class="subtitle">空值不連線設定：同一階段內若有減號 ( - )，該處折線將會自動斷開，並支援階段內趨勢線繪製</div>
+    <h2>多探測/跨受試者多基線研究圖表分析儀 (全域階梯連線版)</h2>
+    <div class="subtitle">空值不連線設定：同一階段內若有減號 ( - )，該處折線將會自動斷開，並支援自訂畫布高度</div>
     
     <div class="input-area">
         <div class="setting-section">
@@ -68,6 +70,9 @@
                 <div class="grid-item"><label for="xAxisTitle">橫軸名稱 (X軸)</label><input type="text" id="xAxisTitle" value="評量次數"></div>
                 <div class="grid-item"><label for="yMaxVal">Y軸最大值</label><input type="number" id="yMaxVal" value="20"></div>
                 <div class="grid-item"><label for="yStepVal">刻度間隔</label><input type="number" id="yStepVal" value="5"></div>
+                
+                <div class="grid-item"><label for="chartHeightVal">單一圖表高度 (px)</label><input type="number" id="chartHeightVal" value="220" oninput="buildSubjectsDataInputs()"></div>
+                
                 <div class="grid-item"><label for="legendTitle1">情境一 (實心符號) 圖例名稱</label><input type="text" id="legendTitle1" value="在教室 (訓練情境) 中的表現" oninput="updateLiveLegends()"></div>
                 <div class="grid-item"><label for="legendTitle2">情境二 (空心符號) 圖例名稱</label><input type="text" id="legendTitle2" value="在街道 (非訓練情境) 上的表現" oninput="updateLiveLegends()"></div>
                 
@@ -136,10 +141,9 @@ const defaultPresetData = {
     C: { line1: ["4, -, -, -, -, 5, 5, -, -, -, -", "6, 6, 7, 15, 14, 14, 14, 15, 13", "-, -, -, 13, -, -, 13"], line2: ["5, -, -, -, -, 4, 4, -, -, -, -", "5, 7, 5, 8, 13, 11, 14, 15, 14", "-, -, -, 14, -, -, 14"] }
 };
 
-// 計算線性迴歸趨勢線的函式 (最小平方法)
 function calculateTrendline(points) {
     const validPoints = points.filter(p => p.y !== null);
-    if (validPoints.length < 2) return []; // 點數小於2無法畫線
+    if (validPoints.length < 2) return [];
 
     let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
     const n = validPoints.length;
@@ -154,7 +158,6 @@ function calculateTrendline(points) {
     const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
     const intercept = (sumY - slope * sumX) / n;
 
-    // 回傳該研究階段頭尾端點的趨勢預測值
     const startX = points[0].x;
     const endX = points[points.length - 1].x;
 
@@ -255,6 +258,9 @@ function buildSubjectsDataInputs() {
         container.appendChild(block);
     });
 
+    // 讀取高度設定並動態綁定到圖表外層盒子上
+    const userH = parseFloat(document.getElementById('chartHeightVal').value) || 220;
+
     const canvasContainer = document.getElementById('canvasRowsContainer');
     canvasContainer.innerHTML = '';
     subjects.forEach((sub, idx) => {
@@ -263,7 +269,7 @@ function buildSubjectsDataInputs() {
         row.innerHTML = `
             <div class="y-axis-left-title" ${idx > 0 ? 'style="visibility: hidden;"' : 'id="sharedYTitle"'}>Y軸</div>
             <div class="subject-label-side">個案 ${sub}</div>
-            <div class="chart-box"><canvas id="chart_${sub}"></canvas></div>
+            <div class="chart-box" style="height: ${userH}px;"><canvas id="chart_${sub}"></canvas></div>
         `;
         canvasContainer.appendChild(row);
     });
@@ -367,7 +373,6 @@ function drawAllCharts() {
                     }
                 });
 
-                // 1. 原始折線數據集
                 combinedDatasets.push({
                     label: `${cfg.name}-P${pIdx}`,
                     data: phasePts,
@@ -385,7 +390,6 @@ function drawAllCharts() {
                     tension: 0
                 });
 
-                // 2. 判斷是否繪製趨勢線 (虛線)
                 if (showTrend) {
                     const trendPoints = calculateTrendline(phasePts);
                     if (trendPoints.length === 2) {
@@ -394,8 +398,8 @@ function drawAllCharts() {
                             data: trendPoints,
                             borderColor: cfg.color,
                             borderWidth: 1.5,
-                            borderDash: [6, 4], // 設定為虛線
-                            pointRadius: 0,     // 趨勢線端點不畫圓點
+                            borderDash: [6, 4], 
+                            pointRadius: 0,     
                             showLine: true,
                             fill: false
                         });
