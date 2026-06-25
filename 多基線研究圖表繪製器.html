@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>多基線研究圖表繪製器</title>
+    <title>跨畫布階梯連線-多探測研究圖表產生器(含趨勢線版)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
@@ -16,7 +16,9 @@
         
         .grid-layout { display: flex; flex-wrap: wrap; gap: 20px; }
         .grid-item { flex: 1; min-width: 200px; }
-        .grid-item.full-width { flex: 1 1 100%; }
+        .checkbox-item { display: flex; align-items: center; gap: 10px; min-width: 200px; padding-top: 25px; }
+        .checkbox-item input { width: auto; cursor: pointer; transform: scale(1.2); }
+        .checkbox-item label { margin-bottom: 0; cursor: pointer; font-size: 14px; color: #1e293b; }
         
         label { display: block; font-size: 0.85em; color: #64748b; margin-bottom: 6px; font-weight: 600; }
         input, select { width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; box-sizing: border-box; background-color: white; }
@@ -55,11 +57,10 @@
 <body>
 
 <div class="container">
-    <h2>多試探/跨受試者多基線研究圖表繪製器</h2>
-    <div class="subtitle">空值不連線設定：同一階段內若有減號 ( - )，該處折線將會自動斷開</div>
+    <h2>多探測/跨受試者多基線研究圖表分析儀 (全域階梯連線版)</h2>
+    <div class="subtitle">空值不連線設定：同一階段內若有減號 ( - )，該處折線將會自動斷開，並支援階段內趨勢線繪製</div>
     
     <div class="input-area">
-        <!-- 1. 全域設定 -->
         <div class="setting-section">
             <div class="section-title">全域座標與標題設定</div>
             <div class="grid-layout">
@@ -67,14 +68,16 @@
                 <div class="grid-item"><label for="xAxisTitle">橫軸名稱 (X軸)</label><input type="text" id="xAxisTitle" value="評量次數"></div>
                 <div class="grid-item"><label for="yMaxVal">Y軸最大值</label><input type="number" id="yMaxVal" value="20"></div>
                 <div class="grid-item"><label for="yStepVal">刻度間隔</label><input type="number" id="yStepVal" value="5"></div>
-                
-                <!-- 新增：可修改的圖例標題欄位 -->
                 <div class="grid-item"><label for="legendTitle1">情境一 (實心符號) 圖例名稱</label><input type="text" id="legendTitle1" value="在教室 (訓練情境) 中的表現" oninput="updateLiveLegends()"></div>
                 <div class="grid-item"><label for="legendTitle2">情境二 (空心符號) 圖例名稱</label><input type="text" id="legendTitle2" value="在街道 (非訓練情境) 上的表現" oninput="updateLiveLegends()"></div>
+                
+                <div class="checkbox-item">
+                    <input type="checkbox" id="showTrendlines" checked onchange="drawAllCharts()">
+                    <label for="showTrendlines"><strong>顯示階段內趨勢線 (虛線)</strong></label>
+                </div>
             </div>
         </div>
 
-        <!-- 2. 期數管理區 -->
         <div class="setting-section">
             <div class="section-title">研究階段(期數)自定義管理</div>
             <div id="phasesContainer">
@@ -94,7 +97,6 @@
             <button class="btn-phase-add" onclick="addPhaseRow()">+ 增加新研究階段 (如：再介入期/維持期)</button>
         </div>
 
-        <!-- 3. 數據輸入區 -->
         <div class="setting-section">
             <div class="section-title">各受試者各階段數據配置 (空值請填減號 - )</div>
             <div id="subjectsContainer"></div>
@@ -105,11 +107,9 @@
         </div>
     </div>
     
-    <!-- 4. 圖表輸出畫布區 -->
     <div class="multi-chart-container" id="visualOutputArea">
         <svg id="stepLineOverlay"></svg>
 
-        <!-- 圖例顯示區，將由 JavaScript 動態填入內容 -->
         <div style="display: flex; justify-content: center; gap: 30px; font-size: 0.9em; font-weight: bold; margin-bottom: 10px; position: relative; z-index: 5;">
             <span style="color: #475569;" id="displayLegend1">● 在教室 (訓練情境) 中的表現</span>
             <span style="color: #ea580c;" id="displayLegend2">○ 在街道 (非訓練情境) 上的表現</span>
@@ -136,6 +136,34 @@ const defaultPresetData = {
     C: { line1: ["4, -, -, -, -, 5, 5, -, -, -, -", "6, 6, 7, 15, 14, 14, 14, 15, 13", "-, -, -, 13, -, -, 13"], line2: ["5, -, -, -, -, 4, 4, -, -, -, -", "5, 7, 5, 8, 13, 11, 14, 15, 14", "-, -, -, 14, -, -, 14"] }
 };
 
+// 計算線性迴歸趨勢線的函式 (最小平方法)
+function calculateTrendline(points) {
+    const validPoints = points.filter(p => p.y !== null);
+    if (validPoints.length < 2) return []; // 點數小於2無法畫線
+
+    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    const n = validPoints.length;
+
+    validPoints.forEach(p => {
+        sumX += p.x;
+        sumY += p.y;
+        sumXY += p.x * p.y;
+        sumXX += p.x * p.x;
+    });
+
+    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / n;
+
+    // 回傳該研究階段頭尾端點的趨勢預測值
+    const startX = points[0].x;
+    const endX = points[points.length - 1].x;
+
+    return [
+        { x: startX, y: slope * startX + intercept },
+        { x: endX, y: slope * endX + intercept }
+    ];
+}
+
 function addPhaseRow() {
     const container = document.getElementById('phasesContainer');
     const row = document.createElement('div');
@@ -153,14 +181,12 @@ function removePhaseRow(btn) {
     buildSubjectsDataInputs();
 }
 
-// 動態更新下方的圖例預覽文字
 function updateLiveLegends() {
     const t1 = document.getElementById('legendTitle1').value || '情境一';
     const t2 = document.getElementById('legendTitle2').value || '情境二';
     document.getElementById('displayLegend1').innerText = `● ${t1}`;
     document.getElementById('displayLegend2').innerText = `○ ${t2}`;
     
-    // 同步更新數據配置區塊中的情境文字標籤
     const label1s = document.querySelectorAll('.label-cond-1');
     const label2s = document.querySelectorAll('.label-cond-2');
     label1s.forEach(lbl => lbl.innerText = `${t1}：`);
@@ -263,6 +289,7 @@ function drawAllCharts() {
 
     const t1 = document.getElementById('legendTitle1').value || '情境一';
     const t2 = document.getElementById('legendTitle2').value || '情境二';
+    const showTrend = document.getElementById('showTrendlines').checked;
 
     const phases = [];
     document.querySelectorAll('.phase-name-setup').forEach(input => {
@@ -340,6 +367,7 @@ function drawAllCharts() {
                     }
                 });
 
+                // 1. 原始折線數據集
                 combinedDatasets.push({
                     label: `${cfg.name}-P${pIdx}`,
                     data: phasePts,
@@ -356,6 +384,23 @@ function drawAllCharts() {
                     spanGaps: false, 
                     tension: 0
                 });
+
+                // 2. 判斷是否繪製趨勢線 (虛線)
+                if (showTrend) {
+                    const trendPoints = calculateTrendline(phasePts);
+                    if (trendPoints.length === 2) {
+                        combinedDatasets.push({
+                            label: `${cfg.name}-P${pIdx}-Trend`,
+                            data: trendPoints,
+                            borderColor: cfg.color,
+                            borderWidth: 1.5,
+                            borderDash: [6, 4], // 設定為虛線
+                            pointRadius: 0,     // 趨勢線端點不畫圓點
+                            showLine: true,
+                            fill: false
+                        });
+                    }
+                }
             });
         });
 
