@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>跨畫布階梯連線-多探測研究圖表產生器(逗點分欄+斜線邊界版)</title>
+    <title>跨畫布階梯連線-多探測研究圖表產生器(完整修正覆寫版)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
@@ -520,7 +520,7 @@ function drawGlobalStepLines(totalPhases) {
     }
 }
 
-// 【全新邏輯：依逗點完全分欄，並在階段間插入「/」欄位】
+// 【符合 Excel 計算的獨立分欄 & 斜線邊界欄位 CSV 匯出邏輯】
 function exportToCSV() {
     const phases = [];
     document.querySelectorAll('.phase-name-setup').forEach(input => {
@@ -547,7 +547,7 @@ function exportToCSV() {
         phaseMaxCols[pIdx] = maxLen;
     });
 
-    // 2. 建立精確表頭（格式：階段_次數，中間插入 階段分隔標記 欄位）
+    // 2. 建立精確表頭
     let csvContent = "\uFEFF"; 
     let headers = ["個案編號", "情境類型", "圖表圖例名稱"];
     
@@ -556,7 +556,6 @@ function exportToCSV() {
         for(let i = 1; i <= totalSubCols; i++) {
             headers.push(`${pName}_第${i}次`);
         }
-        // 如果不是最後一個階段，就插入一個邊界提示欄位
         if(pIdx < phases.length - 1) {
             headers.push(`階段分隔符_${pIdx+1}`);
         }
@@ -579,13 +578,11 @@ function exportToCSV() {
                 const parts = valStr.split(',').map(v => v.trim());
                 const targetLen = phaseMaxCols[pIdx];
                 
-                // 補齊或寫入該階段的獨立數值欄位
                 for(let i = 0; i < targetLen; i++) {
                     let cellVal = (parts[i] !== undefined && parts[i] !== '') ? parts[i] : "-";
                     rowCells.push(`"${cellVal}"`);
                 }
                 
-                // 如果不是最後一個階段，在欄位間塞入實體 "/"
                 if(pIdx < phases.length - 1) {
                     rowCells.push('"/"');
                 }
@@ -603,7 +600,7 @@ function exportToCSV() {
     document.body.removeChild(link);
 }
 
-// 【全新邏輯：智慧讀取包含「/」分隔欄位與獨立分欄的 CSV】
+// 【安全雙向匯入還原：解鎖重複覆寫同檔案限制版】
 function importFromCSV(input) {
     const file = input.files[0];
     if (!file) return;
@@ -617,11 +614,10 @@ function importFromCSV(input) {
         
         const headers = lines[0].split(",").map(h => h.replace(/"/g,'').trim());
         
-        // 透過表頭中「_第」前面的名稱，逆向找出不重複的研究階段
         let importedPhases = [];
         headers.slice(3).forEach(h => {
             if (h.includes('_第')) {
-                let pName = h.split('_第')[0];
+                let pName = h.split('_get')[0].split('_第')[0]; 
                 if (pName && !importedPhases.includes(pName)) {
                     importedPhases.push(pName);
                 }
@@ -630,7 +626,7 @@ function importFromCSV(input) {
         
         if(importedPhases.length === 0) return alert("無法從 Excel 欄位架構中辨識研究階段！");
 
-        // 1. 還原網頁左側研究階段管理元件
+        // 1. 還原網頁研究階段管理組件
         const phasesContainer = document.getElementById('phasesContainer');
         phasesContainer.innerHTML = '';
         importedPhases.forEach(pName => {
@@ -645,7 +641,7 @@ function importFromCSV(input) {
         
         buildSubjectsDataInputs();
         
-        // 2. 循著每一列，以「/」作為切換邊界，把分開的欄位重新用逗號打包回網頁
+        // 2. 還原數值至網頁對應輸入欄位
         for (let i = 1; i < lines.length; i++) {
             const cols = lines[i].split(",").map(c => c.replace(/"/g,'').trim());
             if (cols.length < 3) continue;
@@ -662,11 +658,9 @@ function importFromCSV(input) {
                 const targetInputs = (type === "情境一") ? 
                     block.querySelectorAll('.line1-phase-val') : block.querySelectorAll('.line2-phase-val');
                 
-                // 跑遍每一個偵測到的研究階段
                 importedPhases.forEach((pName, pIdx) => {
                     let collectedVals = [];
                     headers.forEach((h, hIdx) => {
-                        // 程式精準判讀：屬於該階段標籤，且對應數值不是邊界號 "/" 
                         if (h.startsWith(pName + "_第")) {
                             let cellData = cols[hIdx];
                             if (cellData !== undefined && cellData !== '' && cellData !== "/") {
@@ -675,13 +669,11 @@ function importFromCSV(input) {
                         }
                     });
                     
-                    // 清理右側無資料的占位符 "-"
                     while (collectedVals.length > 0 && collectedVals[collectedVals.length - 1] === "-") {
                         collectedVals.pop();
                     }
                     if (collectedVals.length === 0) collectedVals.push("-");
                     
-                    // 重新還原為網頁逗號欄位
                     if (targetInputs[pIdx]) {
                         targetInputs[pIdx].value = collectedVals.join(", ");
                     }
@@ -689,10 +681,13 @@ function importFromCSV(input) {
             }
         }
         
-        // 3. 更新圖表與全域階梯連線
+        // 3. 更新渲染與階梯繪製
         updateLiveLegends();
         drawAllCharts();
         alert("📊 讀取成功！已識別『/』實體分隔欄位，並將拆分欄位無縫組裝還原至網頁。");
+        
+        // 【核心修正點】清除 input 值，確保再次上傳同一個 CSV 檔案時依舊能順利重新觸發與覆寫
+        input.value = ''; 
     };
     reader.readAsText(file, "UTF-8");
 }
