@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>跨畫布階梯連線-多探測研究圖表產生器(斜線階段分隔版)</title>
+    <title>跨畫布階梯連線-多探測研究圖表產生器(逗點分欄+斜線邊界版)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
@@ -62,7 +62,7 @@
 
 <div class="container">
     <h2>多探測/跨受試者多基線研究圖表分析儀 (全域整合連線版)</h2>
-    <div class="subtitle">全面整合：自訂圖例與高度、虛線趨勢線、CSV 斜線（/）階段安全判讀連動規格</div>
+    <div class="subtitle">進階規格：獨立分欄(利於計算) + 實體斜線欄位標記 `/` (利於程式雙向判讀還原)</div>
     
     <div class="input-area">
         <div class="setting-section">
@@ -111,8 +111,8 @@
 
         <div class="btn-group">
             <button class="main-btn btn-update" onclick="drawAllCharts()">📊 更新多基線圖表與全域階梯線</button>
-            <button class="main-btn btn-export" onclick="exportToCSV()">💾 匯出資料至 CSV (斜線 / 分隔階段)</button>
-            <button class="main-btn btn-import" onclick="document.getElementById('importFile').click()">📂 匯入 CSV (斜線 / 分隔階段) 資料</button>
+            <button class="main-btn btn-export" onclick="exportToCSV()">💾 匯出資料至 CSV (獨立分欄+斜線標記)</button>
+            <button class="main-btn btn-import" onclick="document.getElementById('importFile').click()">📂 匯入 CSV (包含斜線分隔欄) 資料</button>
             <input type="file" id="importFile" accept=".csv" style="display: none;" onchange="importFromCSV(this)">
         </div>
     </div>
@@ -520,7 +520,7 @@ function drawGlobalStepLines(totalPhases) {
     }
 }
 
-// 【斜線分隔整合版：匯出符合 / 分隔研究階段的 CSV 檔】
+// 【全新邏輯：依逗點完全分欄，並在階段間插入「/」欄位】
 function exportToCSV() {
     const phases = [];
     document.querySelectorAll('.phase-name-setup').forEach(input => {
@@ -528,48 +528,82 @@ function exportToCSV() {
     });
     
     const subjects = ['A', 'B', 'C'];
-    let csvContent = "\uFEFF"; // 避免 Excel 中文亂碼的 BOM 標頭
     
-    // 定義固定欄位：階段順序會整合在「階段名稱對照」欄中，供讀取程式辨識
-    csvContent += "個案編號,情境類型,圖表圖例名稱,階段名稱順序(斜線分隔),完整跨階段數據序列(斜線分隔階段)\n";
-    
-    const phasesHeaderStr = phases.join(" / ");
+    // 1. 偵測各階段最大寬度
+    let phaseMaxCols = {};
+    phases.forEach((pName, pIdx) => {
+        let maxLen = 1; 
+        subjects.forEach(sub => {
+            const block = document.querySelector(`.subject-block[data-subject="${sub}"]`);
+            if(block) {
+                const v1 = block.querySelectorAll('.line1-phase-val')[pIdx]?.value || '';
+                const v2 = block.querySelectorAll('.line2-phase-val')[pIdx]?.value || '';
+                const len1 = v1.split(',').length;
+                const len2 = v2.split(',').length;
+                if(len1 > maxLen) maxLen = len1;
+                if(len2 > maxLen) maxLen = len2;
+            }
+        });
+        phaseMaxCols[pIdx] = maxLen;
+    });
 
+    // 2. 建立精確表頭（格式：階段_次數，中間插入 階段分隔標記 欄位）
+    let csvContent = "\uFEFF"; 
+    let headers = ["個案編號", "情境類型", "圖表圖例名稱"];
+    
+    phases.forEach((pName, pIdx) => {
+        const totalSubCols = phaseMaxCols[pIdx];
+        for(let i = 1; i <= totalSubCols; i++) {
+            headers.push(`${pName}_第${i}次`);
+        }
+        // 如果不是最後一個階段，就插入一個邊界提示欄位
+        if(pIdx < phases.length - 1) {
+            headers.push(`階段分隔符_${pIdx+1}`);
+        }
+    });
+    csvContent += headers.join(",") + "\n";
+    
+    // 3. 填入拆分後的實際數值
     subjects.forEach(sub => {
         const block = document.querySelector(`.subject-block[data-subject="${sub}"]`);
         const t1 = document.getElementById('legendTitle1').value;
         const t2 = document.getElementById('legendTitle2').value;
         
         ["情境一", "情境二"].forEach(type => {
+            let rowCells = [sub, type, (type === "情境一" ? t1 : t2)];
             const inputs = (type === "情境一") ? 
                 block.querySelectorAll('.line1-phase-val') : block.querySelectorAll('.line2-phase-val');
-            
-            // 抓取各階段文字，並用 " / " 串接
-            let phaseDataArray = [];
+                
             phases.forEach((_, pIdx) => {
-                let val = inputs[pIdx]?.value || '-';
-                if(!val.trim()) val = '-';
-                phaseDataArray.push(val.trim());
+                const valStr = inputs[pIdx]?.value || '';
+                const parts = valStr.split(',').map(v => v.trim());
+                const targetLen = phaseMaxCols[pIdx];
+                
+                // 補齊或寫入該階段的獨立數值欄位
+                for(let i = 0; i < targetLen; i++) {
+                    let cellVal = (parts[i] !== undefined && parts[i] !== '') ? parts[i] : "-";
+                    rowCells.push(`"${cellVal}"`);
+                }
+                
+                // 如果不是最後一個階段，在欄位間塞入實體 "/"
+                if(pIdx < phases.length - 1) {
+                    rowCells.push('"/"');
+                }
             });
-            
-            let finalDataString = phaseDataArray.join(" / ");
-            let legendName = (type === "情境一") ? t1 : t2;
-            
-            // 寫入 CSV 列
-            csvContent += `${sub},${type},"${legendName}","${phasesHeaderStr}","${finalDataString}"\n`;
+            csvContent += rowCells.join(",") + "\n";
         });
     });
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `研究數據表_斜線分隔規格_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute("download", `數據計算與判讀優化表_${new Date().toISOString().slice(0,10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 }
 
-// 【斜線分隔整合版：智慧讀取 / 分隔的 CSV 資料，完美還原】
+// 【全新邏輯：智慧讀取包含「/」分隔欄位與獨立分欄的 CSV】
 function importFromCSV(input) {
     const file = input.files[0];
     if (!file) return;
@@ -579,25 +613,24 @@ function importFromCSV(input) {
         const text = e.target.result;
         const lines = text.split("\n").map(line => line.trim()).filter(line => line.length > 0);
         
-        if (lines.length < 2) return alert("檔案格式不正確！");
+        if (lines.length < 2) return alert("檔案內容格式不正確！");
         
-        // 讀取第一筆數據列來自動還原「研究階段」
-        let firstDataLine = lines[1];
-        // 簡單的 CSV 雙引號切分邏輯，保障含有斜線與逗號的欄位不破裂
-        let matches = firstDataLine.match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g);
-        if(!matches || matches.length < 5) {
-            // 備用拆分法
-            matches = firstDataLine.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-        }
+        const headers = lines[0].split(",").map(h => h.replace(/"/g,'').trim());
         
-        if (!matches || matches.length < 5) return alert("無法解析 CSV 欄位，請確保由本系統匯出！");
+        // 透過表頭中「_第」前面的名稱，逆向找出不重複的研究階段
+        let importedPhases = [];
+        headers.slice(3).forEach(h => {
+            if (h.includes('_第')) {
+                let pName = h.split('_第')[0];
+                if (pName && !importedPhases.includes(pName)) {
+                    importedPhases.push(pName);
+                }
+            }
+        });
         
-        const importedPhasesStr = matches[3].replace(/"/g, '').trim();
-        const importedPhases = importedPhasesStr.split('/').map(p => p.trim());
-        
-        if(importedPhases.length === 0) return alert("無法從 CSV 欄位中解析出對應的研究階段！");
+        if(importedPhases.length === 0) return alert("無法從 Excel 欄位架構中辨識研究階段！");
 
-        // 1. 還原網頁的研究階段管理區
+        // 1. 還原網頁左側研究階段管理元件
         const phasesContainer = document.getElementById('phasesContainer');
         phasesContainer.innerHTML = '';
         importedPhases.forEach(pName => {
@@ -612,15 +645,14 @@ function importFromCSV(input) {
         
         buildSubjectsDataInputs();
         
-        // 2. 解析每列數據，利用斜線分隔還原至各輸入框
+        // 2. 循著每一列，以「/」作為切換邊界，把分開的欄位重新用逗號打包回網頁
         for (let i = 1; i < lines.length; i++) {
-            let cells = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g,'').trim());
-            if (cells.length < 5) continue;
+            const cols = lines[i].split(",").map(c => c.replace(/"/g,'').trim());
+            if (cols.length < 3) continue;
             
-            const sub = cells[0];
-            const type = cells[1];
-            const legendName = cells[2];
-            const dataString = cells[4]; // 拿到用斜線分隔的數據串
+            const sub = cols[0];
+            const type = cols[1];
+            const legendName = cols[2];
             
             if (type === "情境一") document.getElementById('legendTitle1').value = legendName;
             if (type === "情境二") document.getElementById('legendTitle2').value = legendName;
@@ -630,21 +662,37 @@ function importFromCSV(input) {
                 const targetInputs = (type === "情境一") ? 
                     block.querySelectorAll('.line1-phase-val') : block.querySelectorAll('.line2-phase-val');
                 
-                // 依據斜線拆出各階段數據
-                const phaseParts = dataString.split('/').map(d => d.trim());
-                
-                importedPhases.forEach((_, pIdx) => {
-                    if (targetInputs[pIdx] && phaseParts[pIdx] !== undefined) {
-                        targetInputs[pIdx].value = phaseParts[pIdx];
+                // 跑遍每一個偵測到的研究階段
+                importedPhases.forEach((pName, pIdx) => {
+                    let collectedVals = [];
+                    headers.forEach((h, hIdx) => {
+                        // 程式精準判讀：屬於該階段標籤，且對應數值不是邊界號 "/" 
+                        if (h.startsWith(pName + "_第")) {
+                            let cellData = cols[hIdx];
+                            if (cellData !== undefined && cellData !== '' && cellData !== "/") {
+                                collectedVals.push(cellData);
+                            }
+                        }
+                    });
+                    
+                    // 清理右側無資料的占位符 "-"
+                    while (collectedVals.length > 0 && collectedVals[collectedVals.length - 1] === "-") {
+                        collectedVals.pop();
+                    }
+                    if (collectedVals.length === 0) collectedVals.push("-");
+                    
+                    // 重新還原為網頁逗號欄位
+                    if (targetInputs[pIdx]) {
+                        targetInputs[pIdx].value = collectedVals.join(", ");
                     }
                 });
             }
         }
         
-        // 3. 重繪圖表
+        // 3. 更新圖表與全域階梯連線
         updateLiveLegends();
         drawAllCharts();
-        alert("📊 已成功讀取斜線分隔（/）機制，完成雙向連動與渲染！");
+        alert("📊 讀取成功！已識別『/』實體分隔欄位，並將拆分欄位無縫組裝還原至網頁。");
     };
     reader.readAsText(file, "UTF-8");
 }
